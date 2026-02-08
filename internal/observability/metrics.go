@@ -93,14 +93,14 @@ func InitMetrics(ctx context.Context, cfg *config.Config, logger *slog.Logger) (
 	return mp, nil
 }
 
-func RecordAuthLogin(provider, status string) {
+func RecordAuthLogin(ctx context.Context, provider, status string) {
 	metricsMu.RLock()
 	m := appMetrics
 	metricsMu.RUnlock()
 	if m == nil {
 		return
 	}
-	m.authLoginCounter.Add(context.Background(), 1,
+	m.authLoginCounter.Add(ctx, 1,
 		metric.WithAttributes(
 			attribute.String("provider", provider),
 			attribute.String("status", status),
@@ -108,32 +108,32 @@ func RecordAuthLogin(provider, status string) {
 	)
 }
 
-func RecordAuthRefresh(status string) {
+func RecordAuthRefresh(ctx context.Context, status string) {
 	metricsMu.RLock()
 	m := appMetrics
 	metricsMu.RUnlock()
 	if m == nil {
 		return
 	}
-	m.authRefreshCounter.Add(context.Background(), 1, metric.WithAttributes(attribute.String("status", status)))
+	m.authRefreshCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("status", status)))
 }
 
-func RecordAuthLogout(status string) {
+func RecordAuthLogout(ctx context.Context, status string) {
 	metricsMu.RLock()
 	m := appMetrics
 	metricsMu.RUnlock()
 	if m == nil {
 		return
 	}
-	m.authLogoutCounter.Add(context.Background(), 1, metric.WithAttributes(attribute.String("status", status)))
+	m.authLogoutCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("status", status)))
 }
 
-func RecordAdminRoleMutation(action string) {
+func RecordAdminRoleMutation(ctx context.Context, action string) {
 	metricsMu.RLock()
 	m := appMetrics
 	metricsMu.RUnlock()
 	if m == nil {
 		return
 	}
-	m.adminRoleCounter.Add(context.Background(), 1, metric.WithAttributes(attribute.String("action", action)))
+	m.adminRoleCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("action", action)))
 }

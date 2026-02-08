@@ -1,0 +1,29 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "tempo", "uid": "tempo"},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "content": "Use Explore with the Tempo datasource and query by trace_id from logs.\\n\\nThis starter dashboard provides a trace-focused entrypoint.",
+        "mode": "markdown"
+      },
+      "title": "Trace Usage",
+      "type": "text"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["otel", "traces"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "title": "Trace Overview",
+  "uid": "trace-overview",
+  "version": 1
+}

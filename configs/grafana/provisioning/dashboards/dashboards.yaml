@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: go-oauth-rbac-service
+    orgId: 1
+    folder: go-oauth-rbac-service
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

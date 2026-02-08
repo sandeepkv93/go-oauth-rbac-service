@@ -53,7 +53,7 @@ func (h *AdminHandler) SetUserRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	observability.Audit(r, "admin.user.roles.updated", "target_user_id", userID, "role_ids", body.RoleIDs)
-	observability.RecordAdminRoleMutation("set_user_roles")
+	observability.RecordAdminRoleMutation(r.Context(), "set_user_roles")
 	response.JSON(w, r, http.StatusOK, map[string]any{"user_id": userID, "role_ids": body.RoleIDs})
 }
 
@@ -100,7 +100,7 @@ func (h *AdminHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	observability.Audit(r, "admin.role.created", "role_id", role.ID, "role_name", role.Name)
-	observability.RecordAdminRoleMutation("create_role")
+	observability.RecordAdminRoleMutation(r.Context(), "create_role")
 	response.JSON(w, r, http.StatusCreated, role)
 }
 

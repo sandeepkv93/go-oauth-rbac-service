@@ -25,12 +25,15 @@ REST API service in Go with Google OAuth login, JWT auth, secure cookie sessions
 - `task run`
 
 ## Local Observability Stack
-- Start local stack with collector + prometheus:
+- Start local stack with collector + Grafana + Tempo + Loki + Mimir:
   - `task docker-up`
 - Services:
   - API: `http://localhost:8080`
+  - Grafana: `http://localhost:3000` (default `admin/admin`)
+  - Tempo: `http://localhost:3200`
+  - Loki: `http://localhost:3100`
+  - Mimir: `http://localhost:9009`
   - OTel Collector health: `http://localhost:13133`
-  - Prometheus: `http://localhost:9090`
 - Collector receives OTLP on:
   - gRPC `localhost:4317`
   - HTTP `localhost:4318`

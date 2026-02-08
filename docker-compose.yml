@@ -24,16 +24,44 @@ services:
       - "8889:8889"
       - "13133:13133"
 
-  prometheus:
-    image: prom/prometheus:v2.55.1
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
+  tempo:
+    image: grafana/tempo:2.5.0
+    command: ["-config.file=/etc/tempo.yaml"]
     volumes:
-      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./configs/tempo.yaml:/etc/tempo.yaml:ro
     ports:
-      - "9090:9090"
+      - "3200:3200"
+
+  loki:
+    image: grafana/loki:3.0.0
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./configs/loki.yaml:/etc/loki/local-config.yaml:ro
+    ports:
+      - "3100:3100"
+
+  mimir:
+    image: grafana/mimir:2.13.0
+    command: ["-config.file=/etc/mimir.yaml"]
+    volumes:
+      - ./configs/mimir.yaml:/etc/mimir.yaml:ro
+    ports:
+      - "9009:9009"
+
+  grafana:
+    image: grafana/grafana:10.4.5
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./configs/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
-      - otel-collector
+      - loki
+      - tempo
+      - mimir
+    ports:
+      - "3000:3000"
 
   api:
     build: .

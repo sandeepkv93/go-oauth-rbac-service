@@ -13,5 +13,5 @@ func Audit(r *http.Request, event string, attrs ...any) {
 		"request_id", r.Header.Get("X-Request-Id"),
 	}
 	base = append(base, attrs...)
-	slog.Info("audit", base...)
+	slog.InfoContext(r.Context(), "audit", base...)
 }

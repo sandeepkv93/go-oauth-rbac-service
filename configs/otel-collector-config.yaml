@@ -20,8 +20,14 @@ processors:
 exporters:
   debug:
     verbosity: basic
-  prometheus:
-    endpoint: 0.0.0.0:8889
+  otlp_grpc/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  otlp_http/loki:
+    endpoint: http://loki:3100/otlp
+  prometheusremotewrite/mimir:
+    endpoint: http://mimir:9009/api/v1/push
 
 service:
   extensions: [health_check]
@@ -29,12 +35,12 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [debug]
+      exporters: [debug, otlp_grpc/tempo]
     metrics:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [debug, prometheus]
+      exporters: [debug, prometheusremotewrite/mimir]
     logs:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [debug]
+      exporters: [debug, otlp_http/loki]

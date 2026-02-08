@@ -1,0 +1,46 @@
+multitenancy_enabled: false
+
+server:
+  http_listen_port: 9009
+
+common:
+  storage:
+    backend: filesystem
+    filesystem:
+      dir: /tmp/mimir/tsdb
+
+blocks_storage:
+  backend: filesystem
+  filesystem:
+    dir: /tmp/mimir/tsdb
+
+ruler_storage:
+  backend: filesystem
+  filesystem:
+    dir: /tmp/mimir/rules
+
+compactor:
+  data_dir: /tmp/mimir/compactor
+
+distributor:
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: memberlist
+
+ingester:
+  ring:
+    replication_factor: 1
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: memberlist
+
+store_gateway:
+  sharding_ring:
+    replication_factor: 1
+    kvstore:
+      store: memberlist
+
+memberlist:
+  join_members:
+    - mimir

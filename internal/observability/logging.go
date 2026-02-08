@@ -14,10 +14,15 @@ import (
 	otlploggrpc "go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/resource"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type multiHandler struct {
 	handlers []slog.Handler
+}
+
+type traceContextHandler struct {
+	next slog.Handler
 }
 
 func (h *multiHandler) Enabled(ctx context.Context, level slog.Level) bool {
@@ -54,6 +59,33 @@ func (h *multiHandler) WithGroup(name string) slog.Handler {
 	return &multiHandler{handlers: next}
 }
 
+func (h *traceContextHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.next.Enabled(ctx, level)
+}
+
+func (h *traceContextHandler) Handle(ctx context.Context, r slog.Record) error {
+	traceID := ""
+	spanID := ""
+	sc := trace.SpanContextFromContext(ctx)
+	if sc.IsValid() {
+		traceID = sc.TraceID().String()
+		spanID = sc.SpanID().String()
+	}
+	r.AddAttrs(
+		slog.String("trace_id", traceID),
+		slog.String("span_id", spanID),
+	)
+	return h.next.Handle(ctx, r)
+}
+
+func (h *traceContextHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &traceContextHandler{next: h.next.WithAttrs(attrs)}
+}
+
+func (h *traceContextHandler) WithGroup(name string) slog.Handler {
+	return &traceContextHandler{next: h.next.WithGroup(name)}
+}
+
 var (
 	loggerMu     sync.RWMutex
 	globalLogger *slog.Logger
@@ -77,7 +109,7 @@ func InitLogger(cfg *config.Config, lp *sdklog.LoggerProvider) *slog.Logger {
 	level := parseLogLevel(cfg.OTELLogLevel)
 	stdout := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})
 	if !cfg.OTELLogsEnabled || lp == nil {
-		l := slog.New(stdout)
+		l := slog.New(&traceContextHandler{next: stdout})
 		loggerMu.Lock()
 		globalLogger = l
 		loggerMu.Unlock()
@@ -86,7 +118,7 @@ func InitLogger(cfg *config.Config, lp *sdklog.LoggerProvider) *slog.Logger {
 	}
 
 	otelHandler := otelslog.NewHandler(cfg.OTELServiceName, otelslog.WithLoggerProvider(lp))
-	l := slog.New(&multiHandler{handlers: []slog.Handler{stdout, otelHandler}})
+	l := slog.New(&traceContextHandler{next: &multiHandler{handlers: []slog.Handler{stdout, otelHandler}}})
 	loggerMu.Lock()
 	globalLogger = l
 	loggerMu.Unlock()
