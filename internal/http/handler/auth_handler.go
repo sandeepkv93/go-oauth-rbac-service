@@ -13,13 +13,13 @@ import (
 )
 
 type AuthHandler struct {
-	authSvc    *service.AuthService
+	authSvc    service.AuthServiceInterface
 	cookieMgr  *security.CookieManager
 	stateKey   string
 	refreshTTL time.Duration
 }
 
-func NewAuthHandler(authSvc *service.AuthService, cookieMgr *security.CookieManager, stateKey string, refreshTTL time.Duration) *AuthHandler {
+func NewAuthHandler(authSvc service.AuthServiceInterface, cookieMgr *security.CookieManager, stateKey string, refreshTTL time.Duration) *AuthHandler {
 	return &AuthHandler{authSvc: authSvc, cookieMgr: cookieMgr, stateKey: stateKey, refreshTTL: refreshTTL}
 }
 

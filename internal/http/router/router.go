@@ -19,7 +19,7 @@ type Dependencies struct {
 	UserHandler      *handler.UserHandler
 	AdminHandler     *handler.AdminHandler
 	JWTManager       *security.JWTManager
-	RBACService      *service.RBACService
+	RBACService      service.RBACAuthorizer
 	CORSOrigins      []string
 	AuthRateLimitRPM int
 	APIRateLimitRPM  int

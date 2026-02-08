@@ -16,12 +16,12 @@ import (
 )
 
 type AdminHandler struct {
-	userSvc  *service.UserService
+	userSvc  service.UserServiceInterface
 	roleRepo repository.RoleRepository
 	permRepo repository.PermissionRepository
 }
 
-func NewAdminHandler(userSvc *service.UserService, roleRepo repository.RoleRepository, permRepo repository.PermissionRepository) *AdminHandler {
+func NewAdminHandler(userSvc service.UserServiceInterface, roleRepo repository.RoleRepository, permRepo repository.PermissionRepository) *AdminHandler {
 	return &AdminHandler{userSvc: userSvc, roleRepo: roleRepo, permRepo: permRepo}
 }
 

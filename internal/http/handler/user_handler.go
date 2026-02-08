@@ -10,10 +10,12 @@ import (
 )
 
 type UserHandler struct {
-	userSvc *service.UserService
+	userSvc service.UserServiceInterface
 }
 
-func NewUserHandler(userSvc *service.UserService) *UserHandler { return &UserHandler{userSvc: userSvc} }
+func NewUserHandler(userSvc service.UserServiceInterface) *UserHandler {
+	return &UserHandler{userSvc: userSvc}
+}
 
 func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
 	claims, ok := middleware.ClaimsFromContext(r.Context())

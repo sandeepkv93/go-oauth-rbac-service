@@ -7,7 +7,7 @@ import (
 	"go-oauth-rbac-service/internal/service"
 )
 
-func RequirePermission(rbac *service.RBACService, permission string) func(http.Handler) http.Handler {
+func RequirePermission(rbac service.RBACAuthorizer, permission string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			claims, ok := ClaimsFromContext(r.Context())
