@@ -47,11 +47,11 @@ func InitializeApp() (*app.App, error) {
 	dependencies := provideRouterDependencies(authHandler, userHandler, adminHandler, jwtManager, rbacService, configConfig)
 	httpHandler := router.NewRouter(dependencies)
 	server := provideHTTPServer(configConfig, httpHandler)
-	diObservabilityReady, err := initializeObservability()
+	runtime, err := provideObservabilityRuntime(configConfig, logger)
 	if err != nil {
 		return nil, err
 	}
-	appApp := provideApp(configConfig, logger, server, diObservabilityReady)
+	appApp := provideApp(configConfig, logger, server, runtime)
 	return appApp, nil
 }
 

@@ -1,6 +1,7 @@
 package di
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -24,7 +25,7 @@ var ConfigSet = wire.NewSet(config.Load)
 
 var ObservabilitySet = wire.NewSet(
 	observability.NewLogger,
-	initializeObservability,
+	provideObservabilityRuntime,
 )
 
 var RuntimeInfraSet = wire.NewSet(
@@ -68,8 +69,6 @@ var HTTPSet = wire.NewSet(
 
 var AppSet = wire.NewSet(provideApp)
 
-type observabilityReady struct{}
-
 type MigrationRunner struct {
 	cfg *config.Config
 	db  *gorm.DB
@@ -90,14 +89,8 @@ func (m *MigrationRunner) Run() error {
 	return nil
 }
 
-func initializeObservability() (*observabilityReady, error) {
-	if err := observability.InitMetrics(); err != nil {
-		return nil, err
-	}
-	if err := observability.InitTracing(); err != nil {
-		return nil, err
-	}
-	return &observabilityReady{}, nil
+func provideObservabilityRuntime(cfg *config.Config, logger *slog.Logger) (*observability.Runtime, error) {
+	return observability.InitRuntime(context.Background(), cfg, logger)
 }
 
 func provideOpenDB(cfg *config.Config) (*gorm.DB, error) {
@@ -151,6 +144,7 @@ func provideRouterDependencies(
 		CORSOrigins:      cfg.CORSAllowedOrigins,
 		AuthRateLimitRPM: cfg.AuthRateLimitPerMin,
 		APIRateLimitRPM:  cfg.APIRateLimitPerMin,
+		EnableOTelHTTP:   cfg.OTELMetricsEnabled || cfg.OTELTracingEnabled,
 	}
 }
 
@@ -165,6 +159,6 @@ func provideHTTPServer(cfg *config.Config, h http.Handler) *http.Server {
 	}
 }
 
-func provideApp(cfg *config.Config, logger *slog.Logger, server *http.Server, _ *observabilityReady) *app.App {
-	return app.New(cfg, logger, server)
+func provideApp(cfg *config.Config, logger *slog.Logger, server *http.Server, runtime *observability.Runtime) *app.App {
+	return app.New(cfg, logger, server, runtime)
 }

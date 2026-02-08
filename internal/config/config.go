@@ -34,6 +34,15 @@ type Config struct {
 
 	AuthRateLimitPerMin int
 	APIRateLimitPerMin  int
+
+	OTELServiceName           string
+	OTELEnvironment           string
+	OTELExporterOTLPEndpoint  string
+	OTELExporterOTLPInsecure  bool
+	OTELMetricsExportInterval time.Duration
+	OTELTraceSamplingRatio    float64
+	OTELMetricsEnabled        bool
+	OTELTracingEnabled        bool
 }
 
 func Load() (*Config, error) {
@@ -57,6 +66,14 @@ func Load() (*Config, error) {
 		BootstrapAdminEmail: strings.TrimSpace(strings.ToLower(os.Getenv("BOOTSTRAP_ADMIN_EMAIL"))),
 		AuthRateLimitPerMin: getEnvInt("AUTH_RATE_LIMIT_PER_MIN", 30),
 		APIRateLimitPerMin:  getEnvInt("API_RATE_LIMIT_PER_MIN", 120),
+
+		OTELServiceName:          getEnv("OTEL_SERVICE_NAME", "go-oauth-rbac-service"),
+		OTELEnvironment:          getEnv("OTEL_ENVIRONMENT", getEnv("APP_ENV", "development")),
+		OTELExporterOTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317"),
+		OTELExporterOTLPInsecure: getEnvBool("OTEL_EXPORTER_OTLP_INSECURE", true),
+		OTELTraceSamplingRatio:   getEnvFloat("OTEL_TRACE_SAMPLING_RATIO", 1.0),
+		OTELMetricsEnabled:       getEnvBool("OTEL_METRICS_ENABLED", true),
+		OTELTracingEnabled:       getEnvBool("OTEL_TRACING_ENABLED", true),
 	}
 
 	accessTTL, err := time.ParseDuration(getEnv("JWT_ACCESS_TTL", "15m"))
@@ -70,6 +87,12 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("parse JWT_REFRESH_TTL: %w", err)
 	}
 	cfg.JWTRefreshTTL = refreshTTL
+
+	metricsInterval, err := time.ParseDuration(getEnv("OTEL_METRICS_EXPORT_INTERVAL", "10s"))
+	if err != nil {
+		return nil, fmt.Errorf("parse OTEL_METRICS_EXPORT_INTERVAL: %w", err)
+	}
+	cfg.OTELMetricsExportInterval = metricsInterval
 
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -115,6 +138,15 @@ func (c *Config) Validate() error {
 	if c.APIRateLimitPerMin <= 0 {
 		errs = append(errs, "API_RATE_LIMIT_PER_MIN must be > 0")
 	}
+	if (c.OTELMetricsEnabled || c.OTELTracingEnabled) && c.OTELExporterOTLPEndpoint == "" {
+		errs = append(errs, "OTEL_EXPORTER_OTLP_ENDPOINT is required when OTel is enabled")
+	}
+	if c.OTELTraceSamplingRatio < 0 || c.OTELTraceSamplingRatio > 1 {
+		errs = append(errs, "OTEL_TRACE_SAMPLING_RATIO must be between 0 and 1")
+	}
+	if c.OTELMetricsExportInterval <= 0 {
+		errs = append(errs, "OTEL_METRICS_EXPORT_INTERVAL must be > 0")
+	}
 	if len(errs) > 0 {
 		return errors.New(strings.Join(errs, "; "))
 	}
@@ -151,6 +183,18 @@ func getEnvInt(key string, def int) int {
 		return def
 	}
 	return n
+}
+
+func getEnvFloat(key string, def float64) float64 {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return def
+	}
+	return f
 }
 
 func splitCSV(v string) []string {

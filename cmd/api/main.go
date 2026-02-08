@@ -39,5 +39,10 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if a.Observability != nil {
+		if err := a.Observability.Shutdown(ctx); err != nil {
+			a.Logger.Error("failed to shutdown observability", "error", err)
+		}
+	}
 	_ = a.Server.Shutdown(ctx)
 }

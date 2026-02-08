@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"go-oauth-rbac-service/internal/http/handler"
 	"go-oauth-rbac-service/internal/http/middleware"
@@ -23,6 +24,7 @@ type Dependencies struct {
 	CORSOrigins      []string
 	AuthRateLimitRPM int
 	APIRateLimitRPM  int
+	EnableOTelHTTP   bool
 }
 
 func NewRouter(dep Dependencies) http.Handler {
@@ -68,5 +70,9 @@ func NewRouter(dep Dependencies) http.Handler {
 		})
 	})
 
-	return r
+	var h http.Handler = r
+	if dep.EnableOTelHTTP {
+		h = otelhttp.NewHandler(r, "http.server")
+	}
+	return h
 }

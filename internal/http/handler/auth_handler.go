@@ -27,6 +27,7 @@ func (h *AuthHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	state, err := security.NewRandomString(24)
 	if err != nil {
 		observability.Audit(r, "auth.google.login.failed", "reason", "state_generation")
+		observability.RecordAuthLogin("google", "failure")
 		response.Error(w, r, http.StatusInternalServerError, "INTERNAL", "failed to generate oauth state", nil)
 		return
 	}
@@ -41,6 +42,7 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	if queryState == "" || code == "" {
 		observability.Audit(r, "auth.google.callback.failed", "reason", "missing_code_or_state")
+		observability.RecordAuthLogin("google", "failure")
 		response.Error(w, r, http.StatusBadRequest, "BAD_REQUEST", "missing state or code", nil)
 		return
 	}
@@ -48,6 +50,7 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	state, ok := security.VerifySignedState(stateCookie, h.stateKey)
 	if !ok || state != queryState {
 		observability.Audit(r, "auth.google.callback.failed", "reason", "invalid_state")
+		observability.RecordAuthLogin("google", "failure")
 		response.Error(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "invalid oauth state", nil)
 		return
 	}
@@ -57,11 +60,13 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	result, err := h.authSvc.LoginWithGoogleCode(code, r.UserAgent(), clientIP(r))
 	if err != nil {
 		observability.Audit(r, "auth.google.callback.failed", "reason", "oauth_exchange", "error", err.Error())
+		observability.RecordAuthLogin("google", "failure")
 		response.Error(w, r, http.StatusUnauthorized, "OAUTH_FAILED", err.Error(), nil)
 		return
 	}
 	h.cookieMgr.SetTokenCookies(w, result.AccessToken, result.RefreshToken, result.CSRFToken, h.refreshTTL)
 	observability.Audit(r, "auth.login.success", "user_id", result.User.ID, "provider", "google")
+	observability.RecordAuthLogin("google", "success")
 	response.JSON(w, r, http.StatusOK, map[string]any{"user": result.User, "csrf_token": result.CSRFToken, "expires_at": result.ExpiresAt})
 }
 
@@ -69,17 +74,20 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	refresh := security.GetCookie(r, "refresh_token")
 	if refresh == "" {
 		observability.Audit(r, "auth.refresh.failed", "reason", "missing_refresh_cookie")
+		observability.RecordAuthRefresh("failure")
 		response.Error(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "missing refresh token", nil)
 		return
 	}
 	result, err := h.authSvc.Refresh(refresh, r.UserAgent(), clientIP(r))
 	if err != nil {
 		observability.Audit(r, "auth.refresh.failed", "reason", "invalid_refresh")
+		observability.RecordAuthRefresh("failure")
 		response.Error(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "invalid refresh token", nil)
 		return
 	}
 	h.cookieMgr.SetTokenCookies(w, result.AccessToken, result.RefreshToken, result.CSRFToken, h.refreshTTL)
 	observability.Audit(r, "auth.refresh.success", "user_id", result.User.ID)
+	observability.RecordAuthRefresh("success")
 	response.JSON(w, r, http.StatusOK, map[string]any{"user": result.User, "csrf_token": result.CSRFToken, "expires_at": result.ExpiresAt})
 }
 
@@ -87,22 +95,26 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	claims, ok := middleware.ClaimsFromContext(r.Context())
 	if !ok {
 		observability.Audit(r, "auth.logout.failed", "reason", "missing_auth_context")
+		observability.RecordAuthLogout("failure")
 		response.Error(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "missing auth context", nil)
 		return
 	}
 	uid, err := h.authSvc.ParseUserID(claims.Subject)
 	if err != nil {
 		observability.Audit(r, "auth.logout.failed", "reason", "invalid_subject")
+		observability.RecordAuthLogout("failure")
 		response.Error(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "invalid subject", nil)
 		return
 	}
 	if err := h.authSvc.Logout(uid); err != nil {
 		observability.Audit(r, "auth.logout.failed", "user_id", uid, "reason", "revoke_error")
+		observability.RecordAuthLogout("failure")
 		response.Error(w, r, http.StatusInternalServerError, "INTERNAL", "logout failed", nil)
 		return
 	}
 	h.cookieMgr.ClearTokenCookies(w)
 	observability.Audit(r, "auth.logout.success", "user_id", uid)
+	observability.RecordAuthLogout("success")
 	response.JSON(w, r, http.StatusOK, map[string]string{"status": "logged_out"})
 }
 
