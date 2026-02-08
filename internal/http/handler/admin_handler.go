@@ -10,6 +10,7 @@ import (
 
 	"go-oauth-rbac-service/internal/domain"
 	"go-oauth-rbac-service/internal/http/response"
+	"go-oauth-rbac-service/internal/observability"
 	"go-oauth-rbac-service/internal/repository"
 	"go-oauth-rbac-service/internal/service"
 )
@@ -51,6 +52,7 @@ func (h *AdminHandler) SetUserRoles(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, r, http.StatusInternalServerError, "INTERNAL", "failed to set roles", nil)
 		return
 	}
+	observability.Audit(r, "admin.user.roles.updated", "target_user_id", userID, "role_ids", body.RoleIDs)
 	response.JSON(w, r, http.StatusOK, map[string]any{"user_id": userID, "role_ids": body.RoleIDs})
 }
 
@@ -96,6 +98,7 @@ func (h *AdminHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, r, http.StatusBadRequest, "BAD_REQUEST", "failed to create role", nil)
 		return
 	}
+	observability.Audit(r, "admin.role.created", "role_id", role.ID, "role_name", role.Name)
 	response.JSON(w, r, http.StatusCreated, role)
 }
 

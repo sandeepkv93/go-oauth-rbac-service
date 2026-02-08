@@ -1,83 +1,188 @@
 openapi: 3.0.3
 info:
   title: Go OAuth RBAC Service API
-  version: 1.0.0
+  version: 1.0.1
+  description: Cookie-based auth with Google OAuth2 and RBAC-protected admin endpoints.
 servers:
   - url: http://localhost:8080/api/v1
+components:
+  securitySchemes:
+    accessTokenCookie:
+      type: apiKey
+      in: cookie
+      name: access_token
+  schemas:
+    Meta:
+      type: object
+      properties:
+        request_id: { type: string }
+        timestamp: { type: string, format: date-time }
+    APIError:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: {}
+    Envelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: {}
+        error: { $ref: '#/components/schemas/APIError' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string, format: email }
+        name: { type: string }
+        avatar_url: { type: string }
+        status: { type: string }
+    Role:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: string }
+    Permission:
+      type: object
+      properties:
+        id: { type: integer }
+        resource: { type: string }
+        action: { type: string }
 paths:
   /auth/google/login:
     get:
       summary: Start Google OAuth login
       responses:
-        '302':
-          description: Redirects to Google OAuth
+        '302': { description: Redirect to Google }
   /auth/google/callback:
     get:
-      summary: Google OAuth callback
+      summary: Handle Google OAuth callback
       parameters:
         - in: query
           name: code
           required: true
-          schema:
-            type: string
+          schema: { type: string }
         - in: query
           name: state
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Login success
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { description: OAuth failure }
   /auth/refresh:
     post:
       summary: Rotate refresh token and issue new access token
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
       responses:
         '200':
           description: Token refresh success
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { description: Missing or invalid refresh token }
   /auth/logout:
     post:
-      summary: Revoke user sessions
+      summary: Revoke current user sessions
+      security:
+        - accessTokenCookie: []
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
       responses:
-        '200':
-          description: Logout success
+        '200': { description: Logout success }
+        '401': { description: Unauthorized }
   /me:
     get:
-      summary: Get current user profile
+      summary: Get current profile
+      security:
+        - accessTokenCookie: []
       responses:
         '200':
-          description: Profile response
+          description: Profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '401': { description: Unauthorized }
   /admin/users:
     get:
       summary: List users
+      security:
+        - accessTokenCookie: []
       responses:
         '200':
           description: Users
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+        '403': { description: Forbidden }
   /admin/users/{id}/roles:
     patch:
-      summary: Set roles for a user
+      summary: Set roles for user
+      security:
+        - accessTokenCookie: []
       parameters:
         - in: path
           name: id
           required: true
-          schema:
-            type: integer
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role_ids]
+              properties:
+                role_ids:
+                  type: array
+                  items: { type: integer }
       responses:
-        '200':
-          description: Role update result
+        '200': { description: Updated }
+        '403': { description: Forbidden }
   /admin/roles:
     get:
       summary: List roles
+      security:
+        - accessTokenCookie: []
       responses:
-        '200':
-          description: Roles
+        '200': { description: Roles }
     post:
       summary: Create role
+      security:
+        - accessTokenCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                permissions:
+                  type: array
+                  items: { type: string, example: users:read }
       responses:
-        '201':
-          description: Role created
+        '201': { description: Created }
+        '403': { description: Forbidden }
   /admin/permissions:
     get:
       summary: List permissions
+      security:
+        - accessTokenCookie: []
       responses:
-        '200':
-          description: Permissions
+        '200': { description: Permissions }
+        '403': { description: Forbidden }
