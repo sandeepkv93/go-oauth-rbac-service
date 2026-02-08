@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -18,8 +19,15 @@ func Audit(r *http.Request, event string, attrs ...any) {
 		"event", event,
 		"method", r.Method,
 		"path", r.URL.Path,
-		"request_id", r.Header.Get("X-Request-Id"),
+		"request_id", requestID(r),
 	}
 	base = append(base, attrs...)
 	slog.InfoContext(r.Context(), msg, base...)
+}
+
+func requestID(r *http.Request) string {
+	if id := chimiddleware.GetReqID(r.Context()); id != "" {
+		return id
+	}
+	return r.Header.Get("X-Request-Id")
 }

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
+
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
 type envelope struct {
@@ -37,7 +39,10 @@ func Error(w http.ResponseWriter, r *http.Request, status int, code, message str
 }
 
 func buildMeta(r *http.Request) meta {
-	id := r.Header.Get("X-Request-Id")
+	id := chimiddleware.GetReqID(r.Context())
+	if id == "" {
+		id = r.Header.Get("X-Request-Id")
+	}
 	if id == "" {
 		id = "req-unknown"
 	}
