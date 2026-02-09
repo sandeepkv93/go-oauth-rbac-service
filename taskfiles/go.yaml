@@ -65,6 +65,10 @@ tasks:
     cmds:
       - go test ./test/integration -run TestRBACPermissionCacheEnforcesRoleChangeWithoutRelogin -v
 
+  test:negative-lookup-cache:
+    cmds:
+      - go test ./internal/service -run TestInMemoryNegativeLookupCacheStore -v
+
   test:problem-details:
     cmds:
       - go test ./test/integration -run TestProblemDetails -v

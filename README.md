@@ -217,6 +217,7 @@ Your command surface stays simple, for example:
 - `task test:admin-list-singleflight`
 - `task test:admin-list-etag`
 - `task test:rbac-permission-cache`
+- `task test:negative-lookup-cache`
 - `task test:problem-details`
 - `task test:idempotency`
 - `task test:audit`
@@ -261,6 +262,10 @@ Run only admin list singleflight dedupe tests:
 Run only RBAC permission cache tests:
 
 - `task test:rbac-permission-cache`
+
+Run only negative lookup cache store tests:
+
+- `task test:negative-lookup-cache`
 
 Run only problem-details negotiation tests:
 
