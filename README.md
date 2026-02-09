@@ -214,6 +214,7 @@ Your command surface stays simple, for example:
 - `task test:admin-rbac-write`
 - `task test:admin-list`
 - `task test:admin-list-cache`
+- `task test:admin-list-etag`
 - `task test:rbac-permission-cache`
 - `task test:problem-details`
 - `task test:idempotency`
@@ -247,6 +248,10 @@ Run only RBAC write API tests:
 Run only admin list pagination/filter/sort tests:
 
 - `task test:admin-list`
+
+Run only admin list conditional ETag tests:
+
+- `task test:admin-list-etag`
 
 Run only RBAC permission cache tests:
 

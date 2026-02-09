@@ -253,6 +253,38 @@ sequenceDiagram
 
 Source: `docs/diagrams/admin-list-cache-flow.mmd`
 
+## Admin List Conditional ETag Flow
+
+```mermaid
+sequenceDiagram
+    participant A as Admin Client
+    participant API as Admin Handler
+    participant C as Admin List Cache
+    participant DB as PostgreSQL
+
+    A->>API: GET /api/v1/admin/roles (no If-None-Match)
+    API->>C: Get(query-scoped payload)
+    alt miss
+        API->>DB: Query roles + pagination
+        DB-->>API: payload
+        API->>C: Set(payload, ttl)
+    else hit
+        C-->>API: payload
+    end
+    API->>API: Compute ETag from payload bytes
+    API-->>A: 200 + ETag + Cache-Control: private, no-cache + JSON body
+
+    A->>API: GET /api/v1/admin/roles (If-None-Match: previous ETag)
+    API->>API: Recompute ETag from current payload
+    alt same payload
+        API-->>A: 304 Not Modified + ETag
+    else changed payload
+        API-->>A: 200 + new ETag + JSON body
+    end
+```
+
+Source: `docs/diagrams/admin-list-etag-flow.mmd`
+
 ## Error Negotiation Flow (Envelope vs RFC7807)
 
 ```mermaid
