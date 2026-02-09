@@ -29,6 +29,10 @@ tasks:
     cmds:
       - go test ./test/integration -run TestAuthLifecycle -v
 
+  test:session-management:
+    cmds:
+      - go test ./test/integration -run TestSessionManagement -v
+
   lint:
     deps: [lint:tools]
     cmds:

@@ -8,6 +8,7 @@ Production-oriented Go backend starter with:
 
 - Google OAuth login
 - Cookie-based JWT session flow (access + refresh)
+- Session/device management APIs (`/api/v1/me/sessions`)
 - RBAC authorization
 - OpenTelemetry metrics, traces, and logs
 - Local tri-signal stack (Grafana + Tempo + Loki + Mimir + OTel Collector)
@@ -122,6 +123,25 @@ sequenceDiagram
     API-->>U: User profile
 ```
 
+### Session Device Management Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User Browser
+    participant API as API Server
+    participant DB as PostgreSQL
+
+    U->>API: GET /api/v1/me/sessions
+    API->>DB: List active sessions for authenticated user
+    API-->>U: [{id, user_agent, ip, is_current, ...}]
+    U->>API: DELETE /api/v1/me/sessions/{session_id}
+    API->>DB: Revoke single session by user+session scope
+    API-->>U: {status: revoked}
+    U->>API: POST /api/v1/me/sessions/revoke-others
+    API->>DB: Revoke all except current session
+    API-->>U: {revoked_count: N}
+```
+
 ### Observability Data Flow
 
 ```mermaid
@@ -165,6 +185,7 @@ Your command surface stays simple, for example:
 - `task migrate:smoke`
 - `task obs-validate`
 - `task test:auth-lifecycle`
+- `task test:session-management`
 - `task security`
 
 ## Auth Lifecycle Integration Tests
@@ -174,6 +195,10 @@ The repo now includes end-to-end auth lifecycle integration coverage in `test/in
 Run only lifecycle tests:
 
 - `task test:auth-lifecycle`
+
+Run only session management tests:
+
+- `task test:session-management`
 
 Run all tests:
 
