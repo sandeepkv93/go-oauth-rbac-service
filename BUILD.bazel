@@ -1,0 +1,9 @@
+load("@gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix go-oauth-rbac-service
+# gazelle:build_file_name BUILD.bazel
+
+gazelle(
+    name = "gazelle",
+    args = ["-build_file_name=BUILD.bazel"],
+)

@@ -5,6 +5,7 @@ REST API service in Go with Google OAuth login, JWT auth, secure cookie sessions
 ## Prerequisites
 - Go `1.25.4`
 - [Task](https://taskfile.dev/)
+- [Bazelisk](https://github.com/bazelbuild/bazelisk) (Bazel-first build/test)
 - Docker (optional for local stack)
 
 ## Setup
@@ -23,6 +24,21 @@ REST API service in Go with Google OAuth login, JWT auth, secure cookie sessions
 ## Run
 - `task migrate`
 - `task run`
+- `task bazel:run`
+
+## Bazel
+- Build all targets:
+  - `task bazel:build`
+- Run all Bazel tests:
+  - `task bazel:test`
+- Regenerate BUILD files with Gazelle:
+  - `task gazelle`
+- Verify Gazelle left no diffs:
+  - `task gazelle:check`
+
+Notes:
+- Bazel uses a pinned supported Go SDK (`1.24.11`) via `rules_go`.
+- Host `go` remains `1.25.4` for local Go-native tooling.
 
 ## Local Observability Stack
 - Start local stack with collector + Grafana + Tempo + Loki + Mimir:
@@ -39,7 +55,7 @@ REST API service in Go with Google OAuth login, JWT auth, secure cookie sessions
   - HTTP `localhost:4318`
 
 ## Test and Checks
-- `task ci` (recommended full local gate)
+- `task ci` (recommended full local gate, Bazel-first)
 - `task tidy-check`
 - `task wire-check`
 - `task test`

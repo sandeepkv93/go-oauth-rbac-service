@@ -1,0 +1,18 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "router",
+    srcs = ["router.go"],
+    importpath = "go-oauth-rbac-service/internal/http/router",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/http/handler",
+        "//internal/http/middleware",
+        "//internal/http/response",
+        "//internal/security",
+        "//internal/service",
+        "@com_github_go_chi_chi_v5//:chi",
+        "@com_github_go_chi_chi_v5//middleware",
+        "@io_opentelemetry_go_contrib_instrumentation_net_http_otelhttp//:otelhttp",
+    ],
+)

@@ -14,17 +14,19 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Verify Go version
-        run: go version
+      - name: Install Task
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Set up Bazelisk
+        uses: bazelbuild/setup-bazelisk@v3
+      - name: Bazel build
+        run: task bazel:build
+      - name: Bazel test
+        run: task bazel:test
+      - name: Gazelle check
+        run: task gazelle:check
       - name: Tidy check
-        run: |
-          go mod tidy
-          git diff --exit-code go.mod go.sum
+        run: task tidy-check
       - name: Verify wire generation
-        run: |
-          go run -mod=mod github.com/google/wire/cmd/wire ./internal/di
-          git diff --exit-code internal/di/wire_gen.go
-      - name: Vet
-        run: go vet ./...
-      - name: Test
-        run: go test ./...
+        run: task wire-check

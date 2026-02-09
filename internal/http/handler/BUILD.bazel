@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "handler",
+    srcs = [
+        "admin_handler.go",
+        "auth_handler.go",
+        "user_handler.go",
+    ],
+    importpath = "go-oauth-rbac-service/internal/http/handler",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/domain",
+        "//internal/http/middleware",
+        "//internal/http/response",
+        "//internal/observability",
+        "//internal/repository",
+        "//internal/security",
+        "//internal/service",
+        "@com_github_go_chi_chi_v5//:chi",
+    ],
+)

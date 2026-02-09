@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "middleware",
+    srcs = [
+        "auth_middleware.go",
+        "rate_limit_middleware.go",
+        "rbac_middleware.go",
+        "request_logging_middleware.go",
+        "security_middleware.go",
+    ],
+    importpath = "go-oauth-rbac-service/internal/http/middleware",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/http/response",
+        "//internal/security",
+        "//internal/service",
+        "@com_github_go_chi_chi_v5//:chi",
+        "@com_github_go_chi_chi_v5//middleware",
+    ],
+)

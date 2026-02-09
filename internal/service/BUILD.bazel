@@ -1,0 +1,31 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "service",
+    srcs = [
+        "auth_service.go",
+        "interfaces.go",
+        "oauth_service.go",
+        "rbac_service.go",
+        "token_service.go",
+        "user_service.go",
+    ],
+    importpath = "go-oauth-rbac-service/internal/service",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/config",
+        "//internal/domain",
+        "//internal/repository",
+        "//internal/security",
+        "@io_gorm_gorm//:gorm",
+        "@org_golang_x_oauth2//:oauth2",
+        "@org_golang_x_oauth2//google",
+    ],
+)
+
+go_test(
+    name = "service_test",
+    srcs = ["rbac_service_test.go"],
+    embed = [":service"],
+    deps = ["//internal/domain"],
+)

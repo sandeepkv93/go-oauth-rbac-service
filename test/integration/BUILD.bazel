@@ -1,0 +1,16 @@
+load("@rules_go//go:def.bzl", "go_test")
+
+go_test(
+    name = "integration_test",
+    srcs = [
+        "auth_middleware_test.go",
+        "rate_limit_test.go",
+        "rbac_forbidden_test.go",
+    ],
+    deps = [
+        "//internal/http/middleware",
+        "//internal/security",
+        "//internal/service",
+        "@com_github_go_chi_chi_v5//:chi",
+    ],
+)

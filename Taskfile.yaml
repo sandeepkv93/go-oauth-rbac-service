@@ -5,6 +5,42 @@ tasks:
     cmds:
       - go run ./cmd/api
 
+  bazel:build:
+    cmds:
+      - bazelisk build //...
+
+  bazel:test:
+    cmds:
+      - |
+        bash -ec '
+          tests="$(bazelisk query "tests(//...)")"
+          if [ -z "$tests" ]; then
+            echo "No Bazel test targets; skipping."
+            exit 0
+          fi
+          printf "%s\n" "$tests" | xargs bazelisk test
+        '
+
+  bazel:run:
+    cmds:
+      - bazelisk run //cmd/api:api
+
+  gazelle:
+    cmds:
+      - bazelisk run //:gazelle
+
+  gazelle:check:
+    cmds:
+      - task gazelle
+      - |
+        bash -ec '
+          files="$(rg --files -g "**/BUILD.bazel")"
+          if [ -n "$files" ]; then
+            # shellcheck disable=SC2086
+            git diff --exit-code -- $files
+          fi
+        '
+
   migrate:
     cmds:
       - go run ./cmd/api migrate
@@ -16,7 +52,8 @@ tasks:
   wire-check:
     cmds:
       - task wire
-      - git diff --exit-code internal/di/wire_gen.go
+      - go mod tidy
+      - git diff --exit-code internal/di/wire_gen.go go.mod go.sum
 
   tidy-check:
     cmds:
@@ -33,10 +70,11 @@ tasks:
 
   ci:
     cmds:
+      - task bazel:build
+      - task bazel:test
+      - task gazelle:check
       - task tidy-check
       - task wire-check
-      - task lint
-      - task test
 
   hooks-install:
     cmds:

@@ -1,0 +1,35 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "di",
+    srcs = [
+        "providers.go",
+        "wire_gen.go",
+    ],
+    importpath = "go-oauth-rbac-service/internal/di",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/app",
+        "//internal/config",
+        "//internal/database",
+        "//internal/http/handler",
+        "//internal/http/router",
+        "//internal/observability",
+        "//internal/repository",
+        "//internal/security",
+        "//internal/service",
+        "@com_github_google_wire//:wire",
+        "@io_gorm_gorm//:gorm",
+    ],
+)
+
+go_test(
+    name = "di_test",
+    srcs = ["providers_test.go"],
+    embed = [":di"],
+    deps = [
+        "//internal/config",
+        "//internal/http/router",
+        "//internal/observability",
+    ],
+)

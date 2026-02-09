@@ -1,0 +1,8 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "validator",
+    srcs = ["validator.go"],
+    importpath = "go-oauth-rbac-service/pkg/validator",
+    visibility = ["//visibility:public"],
+)

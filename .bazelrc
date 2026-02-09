@@ -1,0 +1,2 @@
+build --repo_env=GOPROXY=https://proxy.golang.org,direct
+build --repo_env=GOSUMDB=sum.golang.org

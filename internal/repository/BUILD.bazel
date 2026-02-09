@@ -1,0 +1,18 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "repository",
+    srcs = [
+        "oauth_repository.go",
+        "permission_repository.go",
+        "role_repository.go",
+        "session_repository.go",
+        "user_repository.go",
+    ],
+    importpath = "go-oauth-rbac-service/internal/repository",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/domain",
+        "@io_gorm_gorm//:gorm",
+    ],
+)
