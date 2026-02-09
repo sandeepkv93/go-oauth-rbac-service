@@ -28,7 +28,12 @@ go_test(
     srcs = [
         "auth_password_policy_test.go",
         "rbac_service_test.go",
+        "token_service_test.go",
     ],
     embed = [":service"],
-    deps = ["//internal/domain"],
+    deps = [
+        "//internal/domain",
+        "//internal/repository",
+        "//internal/security",
+    ],
 )

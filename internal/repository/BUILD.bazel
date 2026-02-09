@@ -15,5 +15,6 @@ go_library(
     deps = [
         "//internal/domain",
         "@io_gorm_gorm//:gorm",
+        "@io_gorm_gorm//clause",
     ],
 )

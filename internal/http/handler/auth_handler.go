@@ -118,8 +118,14 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	result, err := h.authSvc.Refresh(refresh, r.UserAgent(), clientIP(r))
 	if err != nil {
 		status = "failure"
-		observability.Audit(r, "auth.refresh.failed", "reason", "invalid_refresh")
-		observability.RecordAuthRefresh(r.Context(), "failure")
+		reason := "invalid_refresh"
+		metricStatus := "failure"
+		if errors.Is(err, service.ErrRefreshTokenReuseDetected) {
+			reason = "refresh_reuse_detected"
+			metricStatus = "reuse_detected"
+		}
+		observability.Audit(r, "auth.refresh.failed", "reason", reason)
+		observability.RecordAuthRefresh(r.Context(), metricStatus)
 		response.Error(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "invalid refresh token", nil)
 		return
 	}

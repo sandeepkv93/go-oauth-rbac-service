@@ -1,18 +1,26 @@
 package repository
 
 import (
+	"errors"
 	"time"
 
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/domain"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+var ErrSessionNotFound = errors.New("session not found")
 
 type SessionRepository interface {
 	Create(s *domain.Session) error
-	FindValidByHash(hash string) (*domain.Session, error)
-	RevokeByHash(hash string) error
-	RevokeByUserID(userID uint) error
+	FindByHash(hash string) (*domain.Session, error)
+	RotateSession(oldHash string, newSession *domain.Session) (*domain.Session, error)
+	UpdateTokenLineageByHash(hash, tokenID, familyID string) error
+	MarkReuseDetectedByHash(hash string) error
+	RevokeByHash(hash, reason string) error
+	RevokeByFamilyID(familyID, reason string) (int64, error)
+	RevokeByUserID(userID uint, reason string) error
 	CleanupExpired() (int64, error)
 }
 
@@ -22,23 +30,90 @@ func NewSessionRepository(db *gorm.DB) SessionRepository { return &GormSessionRe
 
 func (r *GormSessionRepository) Create(s *domain.Session) error { return r.db.Create(s).Error }
 
-func (r *GormSessionRepository) FindValidByHash(hash string) (*domain.Session, error) {
+func (r *GormSessionRepository) FindByHash(hash string) (*domain.Session, error) {
 	var s domain.Session
-	err := r.db.Where("refresh_token_hash = ? AND revoked_at IS NULL AND expires_at > ?", hash, time.Now()).First(&s).Error
+	err := r.db.Where("refresh_token_hash = ?", hash).First(&s).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrSessionNotFound
+		}
 		return nil, err
 	}
 	return &s, nil
 }
 
-func (r *GormSessionRepository) RevokeByHash(hash string) error {
-	now := time.Now()
-	return r.db.Model(&domain.Session{}).Where("refresh_token_hash = ? AND revoked_at IS NULL", hash).Update("revoked_at", now).Error
+func (r *GormSessionRepository) RotateSession(oldHash string, newSession *domain.Session) (*domain.Session, error) {
+	var rotated *domain.Session
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		var s domain.Session
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("refresh_token_hash = ? AND revoked_at IS NULL AND expires_at > ?", oldHash, time.Now()).
+			First(&s).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrSessionNotFound
+			}
+			return err
+		}
+		now := time.Now().UTC()
+		reason := "rotated"
+		if err := tx.Model(&domain.Session{}).
+			Where("id = ?", s.ID).
+			Updates(map[string]any{"revoked_at": now, "revoked_reason": reason}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(newSession).Error; err != nil {
+			return err
+		}
+		s.RevokedAt = &now
+		s.RevokedReason = &reason
+		rotated = &s
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return rotated, nil
 }
 
-func (r *GormSessionRepository) RevokeByUserID(userID uint) error {
+func (r *GormSessionRepository) UpdateTokenLineageByHash(hash, tokenID, familyID string) error {
+	updates := map[string]any{
+		"token_id":  tokenID,
+		"family_id": familyID,
+	}
+	return r.db.Model(&domain.Session{}).
+		Where("refresh_token_hash = ? AND (token_id IS NULL OR token_id = '' OR family_id IS NULL OR family_id = '')", hash).
+		Updates(updates).Error
+}
+
+func (r *GormSessionRepository) MarkReuseDetectedByHash(hash string) error {
+	now := time.Now().UTC()
+	reason := "reuse_detected"
+	return r.db.Model(&domain.Session{}).
+		Where("refresh_token_hash = ?", hash).
+		Updates(map[string]any{"reuse_detected_at": now, "revoked_reason": reason}).Error
+}
+
+func (r *GormSessionRepository) RevokeByHash(hash, reason string) error {
 	now := time.Now()
-	return r.db.Model(&domain.Session{}).Where("user_id = ? AND revoked_at IS NULL", userID).Update("revoked_at", now).Error
+	return r.db.Model(&domain.Session{}).
+		Where("refresh_token_hash = ? AND revoked_at IS NULL", hash).
+		Updates(map[string]any{"revoked_at": now, "revoked_reason": reason}).Error
+}
+
+func (r *GormSessionRepository) RevokeByFamilyID(familyID, reason string) (int64, error) {
+	now := time.Now().UTC()
+	res := r.db.Model(&domain.Session{}).
+		Where("family_id = ? AND revoked_at IS NULL", familyID).
+		Updates(map[string]any{"revoked_at": now, "revoked_reason": reason})
+	return res.RowsAffected, res.Error
+}
+
+func (r *GormSessionRepository) RevokeByUserID(userID uint, reason string) error {
+	now := time.Now()
+	return r.db.Model(&domain.Session{}).
+		Where("user_id = ? AND revoked_at IS NULL", userID).
+		Updates(map[string]any{"revoked_at": now, "revoked_reason": reason}).Error
 }
 
 func (r *GormSessionRepository) CleanupExpired() (int64, error) {

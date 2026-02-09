@@ -219,7 +219,7 @@ func (s *AuthService) ChangeLocalPassword(userID uint, currentPassword, newPassw
 	if err := s.localCredsRepo.UpdatePassword(userID, newHash); err != nil {
 		return err
 	}
-	return s.tokenSvc.RevokeAll(userID)
+	return s.tokenSvc.RevokeAll(userID, "password_change")
 }
 
 func (s *AuthService) Refresh(refreshToken, ua, ip string) (*LoginResult, error) {
@@ -237,7 +237,7 @@ func (s *AuthService) Refresh(refreshToken, ua, ip string) (*LoginResult, error)
 }
 
 func (s *AuthService) Logout(userID uint) error {
-	return s.tokenSvc.RevokeAll(userID)
+	return s.tokenSvc.RevokeAll(userID, "logout")
 }
 
 func (s *AuthService) ParseUserID(subject string) (uint, error) {
