@@ -14,26 +14,10 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Install Task
-        run: |
-          go install github.com/go-task/task/v3/cmd/task@latest
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Set up Bazelisk
         uses: bazelbuild/setup-bazelisk@v3
-      - name: Bazel build
-        run: task bazel:build
-      - name: Bazel test
-        run: task bazel:test
-      - name: Lint
-        run: task lint
-      - name: Gazelle check
-        run: task gazelle:check
-      - name: Tidy check
-        run: task tidy-check
-      - name: Verify wire generation
-        run: task wire-check
-      - name: Security gates
-        run: task security
+      - name: Run direct CI checks
+        run: bash scripts/ci/run_all.sh
 
   migration-smoke:
     runs-on: ubuntu-latest
@@ -71,9 +55,5 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Install Task
-        run: |
-          go install github.com/go-task/task/v3/cmd/task@latest
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Migration smoke tests
-        run: task migrate:smoke
+        run: bash scripts/ci/run_migration_smoke.sh

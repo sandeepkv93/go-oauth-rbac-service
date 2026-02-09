@@ -512,6 +512,7 @@ Pinned versions:
 ## CI Pipeline
 
 GitHub Actions workflow: `.github/workflows/ci.yml`
+Direct CI command scripts: `scripts/ci/run_all.sh`, `scripts/ci/run_migration_smoke.sh`
 
 Pipeline steps:
 
