@@ -254,7 +254,7 @@ func provideAuthRateLimiter(cfg *config.Config, redisClient redis.UniversalClien
 	return middleware.NewRateLimiter(cfg.AuthRateLimitPerMin, time.Minute).Middleware()
 }
 
-func provideForgotRateLimiter(cfg *config.Config, redisClient redis.UniversalClient) router.AuthRateLimiterFunc {
+func provideForgotRateLimiter(cfg *config.Config, redisClient redis.UniversalClient) router.ForgotRateLimiterFunc {
 	if cfg.RateLimitRedisEnabled && redisClient != nil {
 		redisLimiter := middleware.NewRedisFixedWindowLimiter(redisClient, cfg.RateLimitRedisPrefix+":auth:forgot")
 		return middleware.NewDistributedRateLimiter(
@@ -277,7 +277,7 @@ func provideRouterDependencies(
 	permissionResolver service.PermissionResolver,
 	globalRateLimiter router.GlobalRateLimiterFunc,
 	authRateLimiter router.AuthRateLimiterFunc,
-	forgotRateLimiter router.AuthRateLimiterFunc,
+	forgotRateLimiter router.ForgotRateLimiterFunc,
 	idempotencyFactory router.IdempotencyMiddlewareFactory,
 	readiness *health.ProbeRunner,
 	cfg *config.Config,

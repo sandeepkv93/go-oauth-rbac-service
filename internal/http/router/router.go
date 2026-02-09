@@ -29,7 +29,7 @@ type Dependencies struct {
 	APIRateLimitRPM            int
 	GlobalRateLimiter          GlobalRateLimiterFunc
 	AuthRateLimiter            AuthRateLimiterFunc
-	ForgotRateLimiter          AuthRateLimiterFunc
+	ForgotRateLimiter          ForgotRateLimiterFunc
 	Idempotency                IdempotencyMiddlewareFactory
 	Readiness                  *health.ProbeRunner
 	EnableOTelHTTP             bool
@@ -37,6 +37,7 @@ type Dependencies struct {
 
 type GlobalRateLimiterFunc func(http.Handler) http.Handler
 type AuthRateLimiterFunc func(http.Handler) http.Handler
+type ForgotRateLimiterFunc func(http.Handler) http.Handler
 type IdempotencyMiddlewareFactory func(scope string) func(http.Handler) http.Handler
 
 func NewRouter(dep Dependencies) http.Handler {
