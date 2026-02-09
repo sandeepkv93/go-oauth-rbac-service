@@ -73,6 +73,8 @@ var ServiceSet = wire.NewSet(
 var HTTPSet = wire.NewSet(
 	provideAuthHandler,
 	handler.NewUserHandler,
+	provideRBACPermissionCacheStore,
+	providePermissionResolver,
 	provideAdminListCacheStore,
 	handler.NewAdminHandler,
 	provideGlobalRateLimiter,
@@ -134,7 +136,7 @@ func provideRuntimeDB(cfg *config.Config) (*gorm.DB, error) {
 }
 
 func provideRedisClient(cfg *config.Config) redis.UniversalClient {
-	if !cfg.RateLimitRedisEnabled && (!cfg.IdempotencyEnabled || !cfg.IdempotencyRedisEnabled) && !cfg.AdminListCacheEnabled {
+	if !cfg.RateLimitRedisEnabled && (!cfg.IdempotencyEnabled || !cfg.IdempotencyRedisEnabled) && !cfg.AdminListCacheEnabled && !cfg.RBACPermissionCacheEnabled {
 		return nil
 	}
 	return redis.NewClient(&redis.Options{
@@ -142,6 +144,20 @@ func provideRedisClient(cfg *config.Config) redis.UniversalClient {
 		Password: cfg.RedisPassword,
 		DB:       cfg.RedisDB,
 	})
+}
+
+func provideRBACPermissionCacheStore(cfg *config.Config, redisClient redis.UniversalClient) service.RBACPermissionCacheStore {
+	if !cfg.RBACPermissionCacheEnabled {
+		return service.NewNoopRBACPermissionCacheStore()
+	}
+	if redisClient == nil {
+		return service.NewNoopRBACPermissionCacheStore()
+	}
+	return service.NewRedisRBACPermissionCacheStore(redisClient, cfg.RBACPermissionCacheRedisPref)
+}
+
+func providePermissionResolver(cfg *config.Config, userSvc service.UserServiceInterface, store service.RBACPermissionCacheStore) service.PermissionResolver {
+	return service.NewCachedPermissionResolver(store, userSvc, cfg.RBACPermissionCacheTTL)
 }
 
 func provideAdminListCacheStore(cfg *config.Config, redisClient redis.UniversalClient) service.AdminListCacheStore {
@@ -228,6 +244,7 @@ func provideRouterDependencies(
 	adminHandler *handler.AdminHandler,
 	jwt *security.JWTManager,
 	rbac service.RBACAuthorizer,
+	permissionResolver service.PermissionResolver,
 	globalRateLimiter router.GlobalRateLimiterFunc,
 	authRateLimiter router.AuthRateLimiterFunc,
 	idempotencyFactory router.IdempotencyMiddlewareFactory,
@@ -240,6 +257,7 @@ func provideRouterDependencies(
 		AdminHandler:               adminHandler,
 		JWTManager:                 jwt,
 		RBACService:                rbac,
+		PermissionResolver:         permissionResolver,
 		CORSOrigins:                cfg.CORSAllowedOrigins,
 		AuthRateLimitRPM:           cfg.AuthRateLimitPerMin,
 		PasswordForgotRateLimitRPM: cfg.AuthPasswordForgotRateLimitPerMin,

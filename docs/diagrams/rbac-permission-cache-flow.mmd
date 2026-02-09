@@ -1,0 +1,29 @@
+sequenceDiagram
+    participant C as Client
+    participant MW as RBAC Middleware
+    participant R as Permission Resolver
+    participant PC as Permission Cache (Redis/In-Memory)
+    participant DB as PostgreSQL
+    participant H as Protected Handler
+
+    C->>MW: Authenticated request to protected route
+    MW->>R: ResolvePermissions(claims.user_id, claims.jti)
+    R->>PC: Get(user_id + session_jti)
+    alt cache hit
+        PC-->>R: permission set
+        R-->>MW: permissions
+    else cache miss
+        R->>DB: Load user roles + permissions
+        DB-->>R: permissions
+        R->>PC: Set(user_id + session_jti, permissions, ttl=RBAC_PERMISSION_CACHE_TTL)
+        R-->>MW: permissions
+    end
+    MW->>MW: Check required permission
+    alt authorized
+        MW->>H: Continue
+        H-->>C: 2xx response
+    else forbidden
+        MW-->>C: 403 FORBIDDEN
+    end
+
+    Note over H,PC: On RBAC mutations, cache invalidates user or all entries

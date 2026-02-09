@@ -15,6 +15,7 @@ go_test(
         "problem_details_test.go",
         "rate_limit_test.go",
         "rbac_forbidden_test.go",
+        "rbac_permission_cache_test.go",
         "session_management_test.go",
     ],
     deps = [

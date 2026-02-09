@@ -22,7 +22,7 @@ func TestRBACForbiddenWithoutPermission(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
-	r.With(middleware.AuthMiddleware(mgr), middleware.RequirePermission(rbac, "roles:write")).Post("/admin/roles", func(w http.ResponseWriter, r *http.Request) {
+	r.With(middleware.AuthMiddleware(mgr), middleware.RequirePermission(rbac, nil, "roles:write")).Post("/admin/roles", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 	})
 

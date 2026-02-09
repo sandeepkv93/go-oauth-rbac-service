@@ -47,6 +47,9 @@ type Config struct {
 	AdminListCacheEnabled        bool
 	AdminListCacheTTL            time.Duration
 	AdminListCacheRedisPrefix    string
+	RBACPermissionCacheEnabled   bool
+	RBACPermissionCacheTTL       time.Duration
+	RBACPermissionCacheRedisPref string
 	RateLimitRedisEnabled        bool
 	IdempotencyEnabled           bool
 	IdempotencyRedisEnabled      bool
@@ -114,6 +117,8 @@ func Load() (*Config, error) {
 		APIRateLimitPerMin:                getEnvInt("API_RATE_LIMIT_PER_MIN", 120),
 		AdminListCacheEnabled:             getEnvBool("ADMIN_LIST_CACHE_ENABLED", true),
 		AdminListCacheRedisPrefix:         getEnv("ADMIN_LIST_CACHE_REDIS_PREFIX", "admin_list_cache"),
+		RBACPermissionCacheEnabled:        getEnvBool("RBAC_PERMISSION_CACHE_ENABLED", true),
+		RBACPermissionCacheRedisPref:      getEnv("RBAC_PERMISSION_CACHE_REDIS_PREFIX", "rbac_perm"),
 		RateLimitRedisEnabled:             getEnvBool("RATE_LIMIT_REDIS_ENABLED", true),
 		IdempotencyEnabled:                getEnvBool("IDEMPOTENCY_ENABLED", true),
 		IdempotencyRedisEnabled:           getEnvBool("IDEMPOTENCY_REDIS_ENABLED", true),
@@ -181,6 +186,12 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("parse ADMIN_LIST_CACHE_TTL: %w", err)
 	}
 	cfg.AdminListCacheTTL = adminListCacheTTL
+
+	rbacPermissionCacheTTL, err := time.ParseDuration(getEnv("RBAC_PERMISSION_CACHE_TTL", "5m"))
+	if err != nil {
+		return nil, fmt.Errorf("parse RBAC_PERMISSION_CACHE_TTL: %w", err)
+	}
+	cfg.RBACPermissionCacheTTL = rbacPermissionCacheTTL
 
 	startGrace, err := time.ParseDuration(getEnv("SERVER_START_GRACE_PERIOD", "2s"))
 	if err != nil {
@@ -275,10 +286,13 @@ func (c *Config) Validate() error {
 	if c.AdminListCacheEnabled && (c.AdminListCacheTTL <= 0 || c.AdminListCacheTTL > (10*time.Minute)) {
 		errs = append(errs, "ADMIN_LIST_CACHE_TTL must be between 1s and 10m when admin list cache is enabled")
 	}
+	if c.RBACPermissionCacheEnabled && (c.RBACPermissionCacheTTL <= 0 || c.RBACPermissionCacheTTL > (30*time.Minute)) {
+		errs = append(errs, "RBAC_PERMISSION_CACHE_TTL must be between 1s and 30m when rbac permission cache is enabled")
+	}
 	if c.IdempotencyTTL <= 0 || c.IdempotencyTTL > (7*24*time.Hour) {
 		errs = append(errs, "IDEMPOTENCY_TTL must be between 1s and 168h")
 	}
-	if (c.RateLimitRedisEnabled || (c.IdempotencyEnabled && c.IdempotencyRedisEnabled) || c.AdminListCacheEnabled) && strings.TrimSpace(c.RedisAddr) == "" {
+	if (c.RateLimitRedisEnabled || (c.IdempotencyEnabled && c.IdempotencyRedisEnabled) || c.AdminListCacheEnabled || c.RBACPermissionCacheEnabled) && strings.TrimSpace(c.RedisAddr) == "" {
 		errs = append(errs, "REDIS_ADDR is required when Redis-backed features are enabled")
 	}
 	if c.ReadinessProbeTimeout <= 0 {

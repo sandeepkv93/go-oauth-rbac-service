@@ -214,6 +214,7 @@ Your command surface stays simple, for example:
 - `task test:admin-rbac-write`
 - `task test:admin-list`
 - `task test:admin-list-cache`
+- `task test:rbac-permission-cache`
 - `task test:problem-details`
 - `task test:idempotency`
 - `task test:audit`
@@ -246,6 +247,10 @@ Run only RBAC write API tests:
 Run only admin list pagination/filter/sort tests:
 
 - `task test:admin-list`
+
+Run only RBAC permission cache tests:
+
+- `task test:rbac-permission-cache`
 
 Run only problem-details negotiation tests:
 
@@ -306,9 +311,12 @@ Configuration is loaded and validated in `internal/config/config.go`.
 - `IDEMPOTENCY_TTL` (default `24h`)
 - `ADMIN_LIST_CACHE_ENABLED` (default `true`)
 - `ADMIN_LIST_CACHE_TTL` (default `30s`)
+- `RBAC_PERMISSION_CACHE_ENABLED` (default `true`)
+- `RBAC_PERMISSION_CACHE_TTL` (default `5m`)
 - `REDIS_ADDR`, `REDIS_PASSWORD`, `REDIS_DB`, `RATE_LIMIT_REDIS_PREFIX`
 - `IDEMPOTENCY_REDIS_PREFIX` (default `idem`)
 - `ADMIN_LIST_CACHE_REDIS_PREFIX` (default `admin_list_cache`)
+- `RBAC_PERMISSION_CACHE_REDIS_PREFIX` (default `rbac_perm`)
 - `READINESS_PROBE_TIMEOUT` (default `1s`)
 - `SERVER_START_GRACE_PERIOD` (default `2s`)
 - `SHUTDOWN_TIMEOUT` (default `20s`)
@@ -407,6 +415,7 @@ OpenAPI spec:
 - CSRF token validation is enforced for mutating cookie-auth endpoints.
 - Request IDs are attached through middleware for log correlation.
 - RBAC is permission-based and enforced in route middleware.
+- RBAC permission checks use a short-lived user/session cache with invalidation on RBAC mutations.
 - Auth and API endpoints use separate fixed-window rate limiters.
 - Scoped mutating endpoints enforce idempotency keys with replay/conflict semantics (`Idempotency-Key`).
 - Admin list endpoints (`/admin/users`, `/admin/roles`, `/admin/permissions`) use read-through Redis cache with actor-scoped query keys and short TTL.
@@ -425,6 +434,16 @@ OpenAPI spec:
   - `POST/PATCH/DELETE /admin/roles/{id?}` -> `admin.roles.list`, `admin.users.list`
   - `POST/PATCH/DELETE /admin/permissions/{id?}` -> `admin.permissions.list`, `admin.roles.list`
   - `POST /admin/rbac/sync` -> all three namespaces
+
+## RBAC Permission Cache Policy
+
+- Key scope: `actor_user_id + access_token_jti` (per user/session)
+- Default TTL: `5m` (`RBAC_PERMISSION_CACHE_TTL`)
+- Backend: Redis when configured, in-memory fallback in tests/local wiring
+- Invalidation:
+  - `PATCH /admin/users/{id}/roles` -> invalidate target user
+  - RBAC role/permission create/update/delete and `POST /admin/rbac/sync` -> invalidate all
+- Failure mode: fail closed on permission resolution errors (`503 RBAC_UNAVAILABLE`)
 
 ## Audit Taxonomy
 

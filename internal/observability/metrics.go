@@ -24,6 +24,7 @@ type AppMetrics struct {
 	authLogoutCounter  metric.Int64Counter
 	adminRBACCounter   metric.Int64Counter
 	adminListCacheHits metric.Int64Counter
+	rbacCacheCounter   metric.Int64Counter
 	idempotencyCounter metric.Int64Counter
 	authReqDuration    metric.Float64Histogram
 }
@@ -97,6 +98,10 @@ func InitMetrics(ctx context.Context, cfg *config.Config, logger *slog.Logger) (
 	if err != nil {
 		return nil, err
 	}
+	rbacPermissionCacheEvents, err := meter.Int64Counter("auth.rbac.permission.cache.events")
+	if err != nil {
+		return nil, err
+	}
 	idempotencyCounter, err := meter.Int64Counter("http.idempotency.events")
 	if err != nil {
 		return nil, err
@@ -113,6 +118,7 @@ func InitMetrics(ctx context.Context, cfg *config.Config, logger *slog.Logger) (
 		authLogoutCounter:  logoutCounter,
 		adminRBACCounter:   adminRBACCounter,
 		adminListCacheHits: adminListCacheEvents,
+		rbacCacheCounter:   rbacPermissionCacheEvents,
 		idempotencyCounter: idempotencyCounter,
 		authReqDuration:    authReqDuration,
 	}
@@ -184,6 +190,18 @@ func RecordAdminListCacheEvent(ctx context.Context, endpoint, outcome string) {
 	}
 	m.adminListCacheHits.Add(ctx, 1, metric.WithAttributes(
 		attribute.String("endpoint", endpoint),
+		attribute.String("outcome", outcome),
+	))
+}
+
+func RecordRBACPermissionCacheEvent(ctx context.Context, outcome string) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.rbacCacheCounter.Add(ctx, 1, metric.WithAttributes(
 		attribute.String("outcome", outcome),
 	))
 }

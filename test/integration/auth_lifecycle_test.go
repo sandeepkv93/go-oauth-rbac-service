@@ -87,6 +87,7 @@ type authTestServerOptions struct {
 	verifyNotifier service.EmailVerificationNotifier
 	resetNotifier  service.PasswordResetNotifier
 	adminListCache service.AdminListCacheStore
+	rbacPermCache  service.RBACPermissionCacheStore
 }
 
 func TestAuthLifecycleLoginRefreshLogoutRevoked(t *testing.T) {
@@ -318,11 +319,16 @@ func newAuthTestServerWithOptions(t *testing.T, opts authTestServerOptions) (str
 
 	authHandler := handler.NewAuthHandler(authSvc, cookieMgr, "0123456789abcdef0123456789abcdef", cfg.JWTRefreshTTL)
 	userHandler := handler.NewUserHandler(userSvc, sessionSvc)
+	permissionCache := opts.rbacPermCache
+	if permissionCache == nil {
+		permissionCache = service.NewInMemoryRBACPermissionCacheStore()
+	}
+	permissionResolver := service.NewCachedPermissionResolver(permissionCache, userSvc, 5*time.Minute)
 	var adminHandler *handler.AdminHandler
 	if opts.adminListCache != nil {
-		adminHandler = handler.NewAdminHandler(userSvc, userRepo, roleRepo, permRepo, rbac, opts.adminListCache, db, cfg)
+		adminHandler = handler.NewAdminHandler(userSvc, userRepo, roleRepo, permRepo, rbac, permissionResolver, opts.adminListCache, db, cfg)
 	} else {
-		adminHandler = handler.NewAdminHandler(userSvc, userRepo, roleRepo, permRepo, rbac, service.NewNoopAdminListCacheStore(), db, cfg)
+		adminHandler = handler.NewAdminHandler(userSvc, userRepo, roleRepo, permRepo, rbac, permissionResolver, service.NewNoopAdminListCacheStore(), db, cfg)
 	}
 	var idempotencyFactory router.IdempotencyMiddlewareFactory
 	if cfg.IdempotencyEnabled {
@@ -339,6 +345,7 @@ func newAuthTestServerWithOptions(t *testing.T, opts authTestServerOptions) (str
 		AdminHandler:               adminHandler,
 		JWTManager:                 jwtMgr,
 		RBACService:                rbac,
+		PermissionResolver:         permissionResolver,
 		CORSOrigins:                []string{"http://localhost"},
 		AuthRateLimitRPM:           1000,
 		PasswordForgotRateLimitRPM: 1000,

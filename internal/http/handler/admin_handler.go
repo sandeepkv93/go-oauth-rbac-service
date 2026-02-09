@@ -32,6 +32,7 @@ type AdminHandler struct {
 	roleRepo             repository.RoleRepository
 	permRepo             repository.PermissionRepository
 	rbac                 service.RBACAuthorizer
+	permissionResolver   service.PermissionResolver
 	adminListCache       service.AdminListCacheStore
 	adminListCacheTTL    time.Duration
 	db                   *gorm.DB
@@ -46,6 +47,7 @@ func NewAdminHandler(
 	roleRepo repository.RoleRepository,
 	permRepo repository.PermissionRepository,
 	rbac service.RBACAuthorizer,
+	permissionResolver service.PermissionResolver,
 	adminListCache service.AdminListCacheStore,
 	db *gorm.DB,
 	cfg *config.Config,
@@ -70,6 +72,7 @@ func NewAdminHandler(
 		roleRepo:             roleRepo,
 		permRepo:             permRepo,
 		rbac:                 rbac,
+		permissionResolver:   permissionResolver,
 		adminListCache:       adminListCache,
 		adminListCacheTTL:    cfg.AdminListCacheTTL,
 		db:                   db,
@@ -156,6 +159,10 @@ func (h *AdminHandler) SetUserRoles(w http.ResponseWriter, r *http.Request) {
 		Reason:      "roles_updated",
 	}, "role_ids", body.RoleIDs)
 	observability.RecordAdminRBACMutation(r.Context(), "user_role", "set_user_roles", "success")
+	if h.permissionResolver != nil {
+		_ = h.permissionResolver.InvalidateUser(r.Context(), userID)
+		observability.RecordRBACPermissionCacheEvent(r.Context(), "invalidate_user")
+	}
 	h.invalidateAdminListCaches(r, "admin.users.list")
 	response.JSON(w, r, http.StatusOK, map[string]any{"user_id": userID, "role_ids": body.RoleIDs})
 }
@@ -245,6 +252,10 @@ func (h *AdminHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 		Reason:      "role_created",
 	}, "role_name", role.Name, "after_permissions", body.Permissions)
 	observability.RecordAdminRBACMutation(r.Context(), "role", "create", "success")
+	if h.permissionResolver != nil {
+		_ = h.permissionResolver.InvalidateAll(r.Context())
+		observability.RecordRBACPermissionCacheEvent(r.Context(), "invalidate_all")
+	}
 	h.invalidateAdminListCaches(r, "admin.roles.list", "admin.users.list")
 	response.JSON(w, r, http.StatusCreated, role)
 }
@@ -354,6 +365,10 @@ func (h *AdminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		"after_permissions", permissionsToStrings(updated.Permissions),
 	)
 	observability.RecordAdminRBACMutation(r.Context(), "role", "update", "success")
+	if h.permissionResolver != nil {
+		_ = h.permissionResolver.InvalidateAll(r.Context())
+		observability.RecordRBACPermissionCacheEvent(r.Context(), "invalidate_all")
+	}
 	h.invalidateAdminListCaches(r, "admin.roles.list", "admin.users.list")
 	response.JSON(w, r, http.StatusOK, updated)
 }
@@ -408,6 +423,10 @@ func (h *AdminHandler) DeleteRole(w http.ResponseWriter, r *http.Request) {
 		Reason:      "role_deleted",
 	}, "role_name", role.Name)
 	observability.RecordAdminRBACMutation(r.Context(), "role", "delete", "success")
+	if h.permissionResolver != nil {
+		_ = h.permissionResolver.InvalidateAll(r.Context())
+		observability.RecordRBACPermissionCacheEvent(r.Context(), "invalidate_all")
+	}
 	h.invalidateAdminListCaches(r, "admin.roles.list", "admin.users.list")
 	response.JSON(w, r, http.StatusOK, map[string]any{"role_id": roleID, "status": "deleted"})
 }
@@ -484,6 +503,10 @@ func (h *AdminHandler) CreatePermission(w http.ResponseWriter, r *http.Request) 
 		Reason:      "permission_created",
 	}, "permission", resource+":"+action)
 	observability.RecordAdminRBACMutation(r.Context(), "permission", "create", "success")
+	if h.permissionResolver != nil {
+		_ = h.permissionResolver.InvalidateAll(r.Context())
+		observability.RecordRBACPermissionCacheEvent(r.Context(), "invalidate_all")
+	}
 	h.invalidateAdminListCaches(r, "admin.permissions.list", "admin.roles.list")
 	response.JSON(w, r, http.StatusCreated, permission)
 }
@@ -561,6 +584,10 @@ func (h *AdminHandler) UpdatePermission(w http.ResponseWriter, r *http.Request) 
 		Reason:      "permission_updated",
 	}, "before", before.Resource+":"+before.Action, "after", updated.Resource+":"+updated.Action)
 	observability.RecordAdminRBACMutation(r.Context(), "permission", "update", "success")
+	if h.permissionResolver != nil {
+		_ = h.permissionResolver.InvalidateAll(r.Context())
+		observability.RecordRBACPermissionCacheEvent(r.Context(), "invalidate_all")
+	}
 	h.invalidateAdminListCaches(r, "admin.permissions.list", "admin.roles.list")
 	response.JSON(w, r, http.StatusOK, updated)
 }
@@ -617,6 +644,10 @@ func (h *AdminHandler) DeletePermission(w http.ResponseWriter, r *http.Request) 
 		Reason:      "permission_deleted",
 	}, "permission", permToken)
 	observability.RecordAdminRBACMutation(r.Context(), "permission", "delete", "success")
+	if h.permissionResolver != nil {
+		_ = h.permissionResolver.InvalidateAll(r.Context())
+		observability.RecordRBACPermissionCacheEvent(r.Context(), "invalidate_all")
+	}
 	h.invalidateAdminListCaches(r, "admin.permissions.list", "admin.roles.list")
 	response.JSON(w, r, http.StatusOK, map[string]any{"permission_id": permID, "status": "deleted"})
 }
@@ -639,6 +670,10 @@ func (h *AdminHandler) SyncRBAC(w http.ResponseWriter, r *http.Request) {
 		Reason:      "seed_reconciled",
 	}, "report", report)
 	observability.RecordAdminRBACMutation(r.Context(), "sync", "sync", "success")
+	if h.permissionResolver != nil {
+		_ = h.permissionResolver.InvalidateAll(r.Context())
+		observability.RecordRBACPermissionCacheEvent(r.Context(), "invalidate_all")
+	}
 	h.invalidateAdminListCaches(r, "admin.users.list", "admin.roles.list", "admin.permissions.list")
 	response.JSON(w, r, http.StatusOK, report)
 }

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/domain"
@@ -30,6 +31,12 @@ type UserServiceInterface interface {
 
 type RBACAuthorizer interface {
 	HasPermission(permissions []string, required string) bool
+}
+
+type PermissionResolver interface {
+	ResolvePermissions(ctx context.Context, claims *security.Claims) ([]string, error)
+	InvalidateUser(ctx context.Context, userID uint) error
+	InvalidateAll(ctx context.Context) error
 }
 
 type SessionServiceInterface interface {
