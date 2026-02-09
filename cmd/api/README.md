@@ -24,6 +24,18 @@ go run ./cmd/api
 - `SHUTDOWN_HTTP_DRAIN_TIMEOUT`
 - `SHUTDOWN_OBSERVABILITY_TIMEOUT`
 
+## RBAC Admin Write Endpoints
+- `PATCH /api/v1/admin/roles/{id}`
+- `DELETE /api/v1/admin/roles/{id}`
+- `POST /api/v1/admin/permissions`
+- `PATCH /api/v1/admin/permissions/{id}`
+- `DELETE /api/v1/admin/permissions/{id}`
+- `POST /api/v1/admin/rbac/sync`
+
+Policy and safety controls:
+- Protected entities via `RBAC_PROTECTED_ROLES` and `RBAC_PROTECTED_PERMISSIONS`.
+- Self-lockout prevention for role/permission mutation paths.
+
 ## Expected Startup Output (example)
 
 ```text
