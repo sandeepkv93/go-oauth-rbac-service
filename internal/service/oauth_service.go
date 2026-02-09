@@ -62,7 +62,7 @@ func (p *GoogleOAuthProvider) FetchUserInfo(ctx context.Context, token *oauth2.T
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("userinfo status: %d", resp.StatusCode)
 	}
@@ -116,16 +116,18 @@ func (s *OAuthService) HandleGoogleCallback(ctx context.Context, code string) (*
 
 	var user *domain.User
 	acct, err := s.oauthRepo.FindByProvider("google", info.ProviderUserID)
-	if err == nil {
+	switch err {
+	case nil:
 		user, err = s.userRepo.FindByID(acct.UserID)
 		if err != nil {
 			return nil, err
 		}
-	} else if err == gorm.ErrRecordNotFound {
+	case gorm.ErrRecordNotFound:
 		u, findErr := s.userRepo.FindByEmail(info.Email)
-		if findErr == nil {
+		switch findErr {
+		case nil:
 			user = u
-		} else if findErr == gorm.ErrRecordNotFound {
+		case gorm.ErrRecordNotFound:
 			user = &domain.User{Email: info.Email, Name: info.Name, AvatarURL: info.Picture, Status: "active"}
 			if err := s.userRepo.Create(user); err != nil {
 				return nil, err
@@ -134,13 +136,13 @@ func (s *OAuthService) HandleGoogleCallback(ctx context.Context, code string) (*
 			if err == nil {
 				_ = s.userRepo.AddRole(user.ID, userRole.ID)
 			}
-		} else {
+		default:
 			return nil, findErr
 		}
 		if err := s.oauthRepo.Create(&domain.OAuthAccount{UserID: user.ID, Provider: "google", ProviderUserID: info.ProviderUserID, EmailVerified: true}); err != nil {
 			return nil, err
 		}
-	} else {
+	default:
 		return nil, err
 	}
 

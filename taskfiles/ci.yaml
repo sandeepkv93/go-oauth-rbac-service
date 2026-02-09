@@ -5,6 +5,7 @@ tasks:
     cmds:
       - task bazel:build
       - task bazel:test
+      - task lint
       - task gazelle:check
       - task tidy-check
       - task wire-check

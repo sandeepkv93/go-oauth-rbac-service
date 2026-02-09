@@ -337,7 +337,7 @@ func doRawText(t *testing.T, client *http.Client, method, url string, body any, 
 	if err != nil {
 		t.Fatalf("do request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	buf := new(bytes.Buffer)
 	_, _ = buf.ReadFrom(resp.Body)
 	return resp, buf.String()
