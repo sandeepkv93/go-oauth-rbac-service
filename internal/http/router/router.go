@@ -85,6 +85,13 @@ func NewRouter(dep Dependencies) http.Handler {
 		})
 
 		r.With(middleware.AuthMiddleware(dep.JWTManager)).Get("/me", dep.UserHandler.Me)
+		r.With(middleware.AuthMiddleware(dep.JWTManager)).Get("/me/sessions", dep.UserHandler.Sessions)
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(dep.JWTManager))
+			r.Use(middleware.CSRFMiddleware)
+			r.Delete("/me/sessions/{session_id}", dep.UserHandler.RevokeSession)
+			r.Post("/me/sessions/revoke-others", dep.UserHandler.RevokeOtherSessions)
+		})
 
 		r.Route("/admin", func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware(dep.JWTManager))

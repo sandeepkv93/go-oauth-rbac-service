@@ -239,12 +239,13 @@ func newAuthTestServer(t *testing.T) (string, *http.Client, func()) {
 		"abcdefghijklmnopqrstuvwxyz654321",
 	)
 	tokenSvc := service.NewTokenService(jwtMgr, sessionRepo, "pepper-1234567890", 15*time.Minute, 24*time.Hour)
+	sessionSvc := service.NewSessionService(sessionRepo, "pepper-1234567890")
 	oauthSvc := service.NewOAuthService(oauthProviderStub{}, userRepo, oauthRepo, roleRepo)
 	authSvc := service.NewAuthService(cfg, oauthSvc, tokenSvc, userSvc, roleRepo, localCredRepo)
 	cookieMgr := security.NewCookieManager("", false, "lax")
 
 	authHandler := handler.NewAuthHandler(authSvc, cookieMgr, "0123456789abcdef0123456789abcdef", cfg.JWTRefreshTTL)
-	userHandler := handler.NewUserHandler(userSvc)
+	userHandler := handler.NewUserHandler(userSvc, sessionSvc)
 	adminHandler := handler.NewAdminHandler(userSvc, roleRepo, permRepo)
 
 	r := router.NewRouter(router.Dependencies{

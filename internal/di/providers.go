@@ -54,12 +54,14 @@ var SecuritySet = wire.NewSet(
 var ServiceSet = wire.NewSet(
 	service.NewRBACService,
 	service.NewUserService,
+	provideSessionService,
 	provideTokenService,
 	service.NewGoogleOAuthProvider,
 	wire.Bind(new(service.OAuthProvider), new(*service.GoogleOAuthProvider)),
 	service.NewOAuthService,
 	service.NewAuthService,
 	wire.Bind(new(service.UserServiceInterface), new(*service.UserService)),
+	wire.Bind(new(service.SessionServiceInterface), new(*service.SessionService)),
 	wire.Bind(new(service.AuthServiceInterface), new(*service.AuthService)),
 	wire.Bind(new(service.RBACAuthorizer), new(*service.RBACService)),
 )
@@ -145,6 +147,10 @@ func provideCookieManager(cfg *config.Config) *security.CookieManager {
 
 func provideTokenService(cfg *config.Config, jwt *security.JWTManager, sessionRepo repository.SessionRepository) *service.TokenService {
 	return service.NewTokenService(jwt, sessionRepo, cfg.RefreshTokenPepper, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
+}
+
+func provideSessionService(cfg *config.Config, sessionRepo repository.SessionRepository) *service.SessionService {
+	return service.NewSessionService(sessionRepo, cfg.RefreshTokenPepper)
 }
 
 func provideAuthHandler(authSvc service.AuthServiceInterface, cookieMgr *security.CookieManager, cfg *config.Config) *handler.AuthHandler {

@@ -53,6 +53,41 @@ func (r *inMemorySessionRepo) FindByHash(hash string) (*domain.Session, error) {
 	return &cp, nil
 }
 
+func (r *inMemorySessionRepo) FindActiveByTokenIDForUser(userID uint, tokenID string) (*domain.Session, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	s, ok := r.byToken[tokenID]
+	if !ok || s.UserID != userID || s.RevokedAt != nil || s.ExpiresAt.Before(time.Now()) {
+		return nil, repository.ErrSessionNotFound
+	}
+	cp := *s
+	return &cp, nil
+}
+
+func (r *inMemorySessionRepo) FindByIDForUser(userID, sessionID uint) (*domain.Session, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	s, ok := r.byID[sessionID]
+	if !ok || s.UserID != userID {
+		return nil, repository.ErrSessionNotFound
+	}
+	cp := *s
+	return &cp, nil
+}
+
+func (r *inMemorySessionRepo) ListActiveByUserID(userID uint) ([]domain.Session, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]domain.Session, 0)
+	for _, s := range r.byID {
+		if s.UserID != userID || s.RevokedAt != nil || s.ExpiresAt.Before(time.Now()) {
+			continue
+		}
+		out = append(out, *s)
+	}
+	return out, nil
+}
+
 func (r *inMemorySessionRepo) RotateSession(oldHash string, newSession *domain.Session) (*domain.Session, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -121,6 +156,38 @@ func (r *inMemorySessionRepo) RevokeByHash(hash, reason string) error {
 	}
 	s.RevokedReason = strPtr(reason)
 	return nil
+}
+
+func (r *inMemorySessionRepo) RevokeByIDForUser(userID, sessionID uint, reason string) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	s, ok := r.byID[sessionID]
+	if !ok || s.UserID != userID {
+		return false, repository.ErrSessionNotFound
+	}
+	if s.RevokedAt != nil {
+		return false, nil
+	}
+	now := time.Now().UTC()
+	s.RevokedAt = &now
+	s.RevokedReason = strPtr(reason)
+	return true, nil
+}
+
+func (r *inMemorySessionRepo) RevokeOthersByUser(userID, keepSessionID uint, reason string) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var count int64
+	for _, s := range r.byID {
+		if s.UserID != userID || s.ID == keepSessionID || s.RevokedAt != nil {
+			continue
+		}
+		now := time.Now().UTC()
+		s.RevokedAt = &now
+		s.RevokedReason = strPtr(reason)
+		count++
+	}
+	return count, nil
 }
 
 func (r *inMemorySessionRepo) RevokeByFamilyID(familyID, reason string) (int64, error) {

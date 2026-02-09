@@ -273,6 +273,94 @@ components:
         meta:
           $ref: '#/components/schemas/Meta'
 
+    SessionSummary:
+      type: object
+      required: [id, created_at, expires_at, user_agent, ip, is_current]
+      properties:
+        id:
+          type: integer
+          format: uint64
+          example: 101
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-02-09T10:00:00Z"
+        expires_at:
+          type: string
+          format: date-time
+          example: "2026-02-16T10:00:00Z"
+        revoked_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        user_agent:
+          type: string
+          example: Mozilla/5.0
+        ip:
+          type: string
+          example: 203.0.113.10
+        is_current:
+          type: boolean
+          example: true
+
+    SessionListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionSummary'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    RevokeSessionResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          required: [session_id, status]
+          properties:
+            session_id:
+              type: integer
+              format: uint64
+              example: 101
+            status:
+              type: string
+              example: revoked
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    RevokeOtherSessionsResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          required: [current_session_id, revoked_count]
+          properties:
+            current_session_id:
+              type: integer
+              format: uint64
+              example: 101
+            revoked_count:
+              type: integer
+              format: int64
+              example: 2
+        meta:
+          $ref: '#/components/schemas/Meta'
+
   responses:
     BadRequestError:
       description: Request payload/path/query is invalid.
@@ -516,6 +604,78 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Envelope' }
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /me/sessions:
+    get:
+      tags: [User]
+      summary: List active sessions for current user
+      operationId: userListSessions
+      security:
+        - accessTokenCookie: []
+      responses:
+        '200':
+          description: Active sessions returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /me/sessions/{session_id}:
+    delete:
+      tags: [User]
+      summary: Revoke a specific session/device
+      operationId: userRevokeSession
+      security:
+        - accessTokenCookie: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: integer
+            format: uint64
+            minimum: 1
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Session revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevokeSessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /me/sessions/revoke-others:
+    post:
+      tags: [User]
+      summary: Revoke all active sessions except current one
+      operationId: userRevokeOtherSessions
+      security:
+        - accessTokenCookie: []
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Other sessions revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevokeOtherSessionsResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
 

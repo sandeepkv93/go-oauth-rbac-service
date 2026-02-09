@@ -15,10 +15,15 @@ var ErrSessionNotFound = errors.New("session not found")
 type SessionRepository interface {
 	Create(s *domain.Session) error
 	FindByHash(hash string) (*domain.Session, error)
+	FindActiveByTokenIDForUser(userID uint, tokenID string) (*domain.Session, error)
+	FindByIDForUser(userID, sessionID uint) (*domain.Session, error)
+	ListActiveByUserID(userID uint) ([]domain.Session, error)
 	RotateSession(oldHash string, newSession *domain.Session) (*domain.Session, error)
 	UpdateTokenLineageByHash(hash, tokenID, familyID string) error
 	MarkReuseDetectedByHash(hash string) error
 	RevokeByHash(hash, reason string) error
+	RevokeByIDForUser(userID, sessionID uint, reason string) (bool, error)
+	RevokeOthersByUser(userID, keepSessionID uint, reason string) (int64, error)
 	RevokeByFamilyID(familyID, reason string) (int64, error)
 	RevokeByUserID(userID uint, reason string) error
 	CleanupExpired() (int64, error)
@@ -40,6 +45,39 @@ func (r *GormSessionRepository) FindByHash(hash string) (*domain.Session, error)
 		return nil, err
 	}
 	return &s, nil
+}
+
+func (r *GormSessionRepository) FindActiveByTokenIDForUser(userID uint, tokenID string) (*domain.Session, error) {
+	var s domain.Session
+	err := r.db.Where("user_id = ? AND token_id = ? AND revoked_at IS NULL AND expires_at > ?", userID, tokenID, time.Now()).
+		First(&s).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrSessionNotFound
+		}
+		return nil, err
+	}
+	return &s, nil
+}
+
+func (r *GormSessionRepository) FindByIDForUser(userID, sessionID uint) (*domain.Session, error) {
+	var s domain.Session
+	err := r.db.Where("user_id = ? AND id = ?", userID, sessionID).First(&s).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrSessionNotFound
+		}
+		return nil, err
+	}
+	return &s, nil
+}
+
+func (r *GormSessionRepository) ListActiveByUserID(userID uint) ([]domain.Session, error) {
+	var sessions []domain.Session
+	err := r.db.Where("user_id = ? AND revoked_at IS NULL AND expires_at > ?", userID, time.Now()).
+		Order("created_at DESC").
+		Find(&sessions).Error
+	return sessions, err
 }
 
 func (r *GormSessionRepository) RotateSession(oldHash string, newSession *domain.Session) (*domain.Session, error) {
@@ -99,6 +137,29 @@ func (r *GormSessionRepository) RevokeByHash(hash, reason string) error {
 	return r.db.Model(&domain.Session{}).
 		Where("refresh_token_hash = ? AND revoked_at IS NULL", hash).
 		Updates(map[string]any{"revoked_at": now, "revoked_reason": reason}).Error
+}
+
+func (r *GormSessionRepository) RevokeByIDForUser(userID, sessionID uint, reason string) (bool, error) {
+	session, err := r.FindByIDForUser(userID, sessionID)
+	if err != nil {
+		return false, err
+	}
+	if session.RevokedAt != nil {
+		return false, nil
+	}
+	now := time.Now().UTC()
+	res := r.db.Model(&domain.Session{}).
+		Where("user_id = ? AND id = ? AND revoked_at IS NULL", userID, sessionID).
+		Updates(map[string]any{"revoked_at": now, "revoked_reason": reason})
+	return res.RowsAffected > 0, res.Error
+}
+
+func (r *GormSessionRepository) RevokeOthersByUser(userID, keepSessionID uint, reason string) (int64, error) {
+	now := time.Now().UTC()
+	res := r.db.Model(&domain.Session{}).
+		Where("user_id = ? AND id <> ? AND revoked_at IS NULL", userID, keepSessionID).
+		Updates(map[string]any{"revoked_at": now, "revoked_reason": reason})
+	return res.RowsAffected, res.Error
 }
 
 func (r *GormSessionRepository) RevokeByFamilyID(familyID, reason string) (int64, error) {

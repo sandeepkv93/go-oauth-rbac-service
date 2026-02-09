@@ -140,15 +140,15 @@ func (s *TokenService) mintTokenPair(user *domain.User, permissions []string) (a
 	for _, r := range user.Roles {
 		roles = append(roles, r.Name)
 	}
-	access, err = s.jwtMgr.SignAccessToken(user.ID, roles, permissions, s.accessTTL)
-	if err != nil {
-		return "", "", nil, "", err
-	}
 	refresh, err = s.jwtMgr.SignRefreshToken(user.ID, s.refreshTTL)
 	if err != nil {
 		return "", "", nil, "", err
 	}
 	refreshClaims, err = s.jwtMgr.ParseRefreshToken(refresh)
+	if err != nil {
+		return "", "", nil, "", err
+	}
+	access, err = s.jwtMgr.SignAccessTokenWithJTI(user.ID, roles, permissions, s.accessTTL, refreshClaims.ID)
 	if err != nil {
 		return "", "", nil, "", err
 	}

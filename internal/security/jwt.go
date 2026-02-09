@@ -33,6 +33,13 @@ func NewJWTManager(issuer, audience, accessSecret, refreshSecret string) *JWTMan
 }
 
 func (m *JWTManager) SignAccessToken(userID uint, roles, perms []string, ttl time.Duration) (string, error) {
+	return m.SignAccessTokenWithJTI(userID, roles, perms, ttl, uuid.NewString())
+}
+
+func (m *JWTManager) SignAccessTokenWithJTI(userID uint, roles, perms []string, ttl time.Duration, jti string) (string, error) {
+	if jti == "" {
+		jti = uuid.NewString()
+	}
 	claims := Claims{
 		TokenType:   "access",
 		Roles:       roles,
@@ -43,7 +50,7 @@ func (m *JWTManager) SignAccessToken(userID uint, roles, perms []string, ttl tim
 			Audience:  []string{m.audience},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			ID:        uuid.NewString(),
+			ID:        jti,
 		},
 	}
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(m.accessSecret)

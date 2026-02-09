@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "repository",
@@ -16,5 +16,17 @@ go_library(
         "//internal/domain",
         "@io_gorm_gorm//:gorm",
         "@io_gorm_gorm//clause",
+    ],
+)
+
+go_test(
+    name = "repository_test",
+    srcs = ["session_repository_test.go"],
+    embed = [":repository"],
+    deps = [
+        "//internal/domain",
+        "@io_gorm_driver_sqlite//:sqlite",
+        "@io_gorm_gorm//:gorm",
+        "@io_gorm_gorm//logger",
     ],
 )

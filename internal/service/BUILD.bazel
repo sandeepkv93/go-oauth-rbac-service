@@ -7,6 +7,7 @@ go_library(
         "interfaces.go",
         "oauth_service.go",
         "rbac_service.go",
+        "session_service.go",
         "token_service.go",
         "user_service.go",
     ],

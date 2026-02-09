@@ -1,6 +1,11 @@
 package service
 
-import "github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/domain"
+import (
+	"net/http"
+
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/domain"
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/security"
+)
 
 type AuthServiceInterface interface {
 	GoogleLoginURL(state string) string
@@ -21,4 +26,11 @@ type UserServiceInterface interface {
 
 type RBACAuthorizer interface {
 	HasPermission(permissions []string, required string) bool
+}
+
+type SessionServiceInterface interface {
+	ListActiveSessions(userID uint, currentSessionID uint) ([]SessionView, error)
+	ResolveCurrentSessionID(r *http.Request, claims *security.Claims, userID uint) (uint, error)
+	RevokeSession(userID, sessionID uint) (string, error)
+	RevokeOtherSessions(userID, currentSessionID uint) (int64, error)
 }
