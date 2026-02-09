@@ -318,6 +318,36 @@ sequenceDiagram
 
 Source: `docs/diagrams/admin-list-etag-flow.mmd`
 
+## Negative Lookup Cache Flow (Safe Non-Auth-Critical Paths)
+
+```mermaid
+sequenceDiagram
+    participant A as Admin Client
+    participant API as Admin Handler
+    participant N as Negative Lookup Cache (Redis)
+    participant DB as PostgreSQL
+
+    A->>API: PATCH /api/v1/admin/roles/{id}
+    API->>N: Get(namespace=admin.role.not_found,key=id)
+    alt negative hit
+        N-->>API: found
+        API-->>A: 404 NOT_FOUND
+    else miss
+        API->>DB: FindByID(id)
+        alt DB not found
+            API->>N: Set(namespace,key,ttl=NEGATIVE_LOOKUP_CACHE_TTL)
+            API-->>A: 404 NOT_FOUND
+        else DB found
+            API-->>A: continue mutation flow
+        end
+    end
+
+    A->>API: RBAC mutation/sync
+    API->>N: InvalidateNamespace(affected negative namespaces)
+```
+
+Source: `docs/diagrams/negative-lookup-cache-flow.mmd`
+
 ## Error Negotiation Flow (Envelope vs RFC7807)
 
 ```mermaid

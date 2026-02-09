@@ -29,6 +29,11 @@ import (
 
 var permissionPartRe = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
+const (
+	roleNegativeLookupNamespace       = "admin.role.not_found"
+	permissionNegativeLookupNamespace = "admin.permission.not_found"
+)
+
 type AdminHandler struct {
 	userSvc              service.UserServiceInterface
 	userRepo             repository.UserRepository
@@ -37,8 +42,10 @@ type AdminHandler struct {
 	rbac                 service.RBACAuthorizer
 	permissionResolver   service.PermissionResolver
 	adminListCache       service.AdminListCacheStore
+	negativeLookupCache  service.NegativeLookupCacheStore
 	adminListSingleGroup singleflight.Group
 	adminListCacheTTL    time.Duration
+	negativeLookupTTL    time.Duration
 	db                   *gorm.DB
 	cfg                  *config.Config
 	protectedRoles       map[string]struct{}
@@ -53,6 +60,7 @@ func NewAdminHandler(
 	rbac service.RBACAuthorizer,
 	permissionResolver service.PermissionResolver,
 	adminListCache service.AdminListCacheStore,
+	negativeLookupCache service.NegativeLookupCacheStore,
 	db *gorm.DB,
 	cfg *config.Config,
 ) *AdminHandler {
@@ -78,7 +86,9 @@ func NewAdminHandler(
 		rbac:                 rbac,
 		permissionResolver:   permissionResolver,
 		adminListCache:       adminListCache,
+		negativeLookupCache:  negativeLookupCache,
 		adminListCacheTTL:    cfg.AdminListCacheTTL,
+		negativeLookupTTL:    cfg.NegativeLookupCacheTTL,
 		db:                   db,
 		cfg:                  cfg,
 		protectedRoles:       protectedRoles,
@@ -289,6 +299,7 @@ func (h *AdminHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 	observability.RecordAdminRBACMutation(r.Context(), "role", "create", "success")
 	h.invalidateRBACPermissionCacheAll(r)
 	h.invalidateAdminListCaches(r, "admin.roles.list", "admin.users.list")
+	h.invalidateNegativeLookupCaches(r, roleNegativeLookupNamespace)
 	response.JSON(w, r, http.StatusCreated, role)
 }
 
@@ -298,9 +309,15 @@ func (h *AdminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, r, http.StatusBadRequest, "BAD_REQUEST", "invalid role id", nil)
 		return
 	}
+	roleCacheKey := strconv.FormatUint(uint64(roleID), 10)
+	if h.readNegativeLookupCache(r, roleNegativeLookupNamespace, roleCacheKey) {
+		response.Error(w, r, http.StatusNotFound, "NOT_FOUND", "role not found", nil)
+		return
+	}
 	before, err := h.roleRepo.FindByID(roleID)
 	if err != nil {
 		if errors.Is(err, repository.ErrRoleNotFound) {
+			h.writeNegativeLookupCache(r, roleNegativeLookupNamespace, roleCacheKey)
 			response.Error(w, r, http.StatusNotFound, "NOT_FOUND", "role not found", nil)
 			return
 		}
@@ -399,6 +416,7 @@ func (h *AdminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 	observability.RecordAdminRBACMutation(r.Context(), "role", "update", "success")
 	h.invalidateRBACPermissionCacheAll(r)
 	h.invalidateAdminListCaches(r, "admin.roles.list", "admin.users.list")
+	h.invalidateNegativeLookupCaches(r, roleNegativeLookupNamespace)
 	response.JSON(w, r, http.StatusOK, updated)
 }
 
@@ -408,9 +426,15 @@ func (h *AdminHandler) DeleteRole(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, r, http.StatusBadRequest, "BAD_REQUEST", "invalid role id", nil)
 		return
 	}
+	roleCacheKey := strconv.FormatUint(uint64(roleID), 10)
+	if h.readNegativeLookupCache(r, roleNegativeLookupNamespace, roleCacheKey) {
+		response.Error(w, r, http.StatusNotFound, "NOT_FOUND", "role not found", nil)
+		return
+	}
 	role, err := h.roleRepo.FindByID(roleID)
 	if err != nil {
 		if errors.Is(err, repository.ErrRoleNotFound) {
+			h.writeNegativeLookupCache(r, roleNegativeLookupNamespace, roleCacheKey)
 			response.Error(w, r, http.StatusNotFound, "NOT_FOUND", "role not found", nil)
 			return
 		}
@@ -454,6 +478,7 @@ func (h *AdminHandler) DeleteRole(w http.ResponseWriter, r *http.Request) {
 	observability.RecordAdminRBACMutation(r.Context(), "role", "delete", "success")
 	h.invalidateRBACPermissionCacheAll(r)
 	h.invalidateAdminListCaches(r, "admin.roles.list", "admin.users.list")
+	h.invalidateNegativeLookupCaches(r, roleNegativeLookupNamespace)
 	response.JSON(w, r, http.StatusOK, map[string]any{"role_id": roleID, "status": "deleted"})
 }
 
@@ -548,6 +573,7 @@ func (h *AdminHandler) CreatePermission(w http.ResponseWriter, r *http.Request) 
 	observability.RecordAdminRBACMutation(r.Context(), "permission", "create", "success")
 	h.invalidateRBACPermissionCacheAll(r)
 	h.invalidateAdminListCaches(r, "admin.permissions.list", "admin.roles.list")
+	h.invalidateNegativeLookupCaches(r, permissionNegativeLookupNamespace)
 	response.JSON(w, r, http.StatusCreated, permission)
 }
 
@@ -557,9 +583,15 @@ func (h *AdminHandler) UpdatePermission(w http.ResponseWriter, r *http.Request) 
 		response.Error(w, r, http.StatusBadRequest, "BAD_REQUEST", "invalid permission id", nil)
 		return
 	}
+	permCacheKey := strconv.FormatUint(uint64(permID), 10)
+	if h.readNegativeLookupCache(r, permissionNegativeLookupNamespace, permCacheKey) {
+		response.Error(w, r, http.StatusNotFound, "NOT_FOUND", "permission not found", nil)
+		return
+	}
 	before, err := h.permRepo.FindByID(permID)
 	if err != nil {
 		if errors.Is(err, repository.ErrPermissionNotFound) {
+			h.writeNegativeLookupCache(r, permissionNegativeLookupNamespace, permCacheKey)
 			response.Error(w, r, http.StatusNotFound, "NOT_FOUND", "permission not found", nil)
 			return
 		}
@@ -626,6 +658,7 @@ func (h *AdminHandler) UpdatePermission(w http.ResponseWriter, r *http.Request) 
 	observability.RecordAdminRBACMutation(r.Context(), "permission", "update", "success")
 	h.invalidateRBACPermissionCacheAll(r)
 	h.invalidateAdminListCaches(r, "admin.permissions.list", "admin.roles.list")
+	h.invalidateNegativeLookupCaches(r, permissionNegativeLookupNamespace)
 	response.JSON(w, r, http.StatusOK, updated)
 }
 
@@ -635,9 +668,15 @@ func (h *AdminHandler) DeletePermission(w http.ResponseWriter, r *http.Request) 
 		response.Error(w, r, http.StatusBadRequest, "BAD_REQUEST", "invalid permission id", nil)
 		return
 	}
+	permCacheKey := strconv.FormatUint(uint64(permID), 10)
+	if h.readNegativeLookupCache(r, permissionNegativeLookupNamespace, permCacheKey) {
+		response.Error(w, r, http.StatusNotFound, "NOT_FOUND", "permission not found", nil)
+		return
+	}
 	perm, err := h.permRepo.FindByID(permID)
 	if err != nil {
 		if errors.Is(err, repository.ErrPermissionNotFound) {
+			h.writeNegativeLookupCache(r, permissionNegativeLookupNamespace, permCacheKey)
 			response.Error(w, r, http.StatusNotFound, "NOT_FOUND", "permission not found", nil)
 			return
 		}
@@ -683,6 +722,7 @@ func (h *AdminHandler) DeletePermission(w http.ResponseWriter, r *http.Request) 
 	observability.RecordAdminRBACMutation(r.Context(), "permission", "delete", "success")
 	h.invalidateRBACPermissionCacheAll(r)
 	h.invalidateAdminListCaches(r, "admin.permissions.list", "admin.roles.list")
+	h.invalidateNegativeLookupCaches(r, permissionNegativeLookupNamespace)
 	response.JSON(w, r, http.StatusOK, map[string]any{"permission_id": permID, "status": "deleted"})
 }
 
@@ -706,6 +746,7 @@ func (h *AdminHandler) SyncRBAC(w http.ResponseWriter, r *http.Request) {
 	observability.RecordAdminRBACMutation(r.Context(), "sync", "sync", "success")
 	h.invalidateRBACPermissionCacheAll(r)
 	h.invalidateAdminListCaches(r, "admin.users.list", "admin.roles.list", "admin.permissions.list")
+	h.invalidateNegativeLookupCaches(r, roleNegativeLookupNamespace, permissionNegativeLookupNamespace)
 	response.JSON(w, r, http.StatusOK, report)
 }
 
@@ -1005,6 +1046,50 @@ func (h *AdminHandler) invalidateAdminListCaches(r *http.Request, namespaces ...
 			continue
 		}
 		observability.RecordAdminListCacheEvent(r.Context(), namespace, "invalidate")
+	}
+}
+
+func (h *AdminHandler) readNegativeLookupCache(r *http.Request, namespace, key string) bool {
+	if h.negativeLookupCache == nil || h.negativeLookupTTL <= 0 {
+		return false
+	}
+	ok, err := h.negativeLookupCache.Get(r.Context(), namespace, key)
+	if err != nil {
+		observability.RecordAdminListCacheEvent(r.Context(), namespace, "negative_store_error")
+		return false
+	}
+	if !ok {
+		observability.RecordAdminListCacheEvent(r.Context(), namespace, "negative_miss")
+		return false
+	}
+	observability.RecordAdminListCacheEvent(r.Context(), namespace, "negative_hit")
+	return true
+}
+
+func (h *AdminHandler) writeNegativeLookupCache(r *http.Request, namespace, key string) {
+	if h.negativeLookupCache == nil || h.negativeLookupTTL <= 0 {
+		return
+	}
+	if err := h.negativeLookupCache.Set(r.Context(), namespace, key, h.negativeLookupTTL); err != nil {
+		observability.RecordAdminListCacheEvent(r.Context(), namespace, "negative_store_error")
+		return
+	}
+	observability.RecordAdminListCacheEvent(r.Context(), namespace, "negative_store")
+}
+
+func (h *AdminHandler) invalidateNegativeLookupCaches(r *http.Request, namespaces ...string) {
+	if h.negativeLookupCache == nil || len(namespaces) == 0 {
+		return
+	}
+	for _, namespace := range namespaces {
+		if namespace == "" {
+			continue
+		}
+		if err := h.negativeLookupCache.InvalidateNamespace(r.Context(), namespace); err != nil {
+			observability.RecordAdminListCacheEvent(r.Context(), namespace, "negative_invalidate_error")
+			continue
+		}
+		observability.RecordAdminListCacheEvent(r.Context(), namespace, "negative_invalidate")
 	}
 }
 

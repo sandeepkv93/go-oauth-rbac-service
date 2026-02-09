@@ -321,11 +321,14 @@ Configuration is loaded and validated in `internal/config/config.go`.
 - `IDEMPOTENCY_TTL` (default `24h`)
 - `ADMIN_LIST_CACHE_ENABLED` (default `true`)
 - `ADMIN_LIST_CACHE_TTL` (default `30s`)
+- `NEGATIVE_LOOKUP_CACHE_ENABLED` (default `true`)
+- `NEGATIVE_LOOKUP_CACHE_TTL` (default `15s`)
 - `RBAC_PERMISSION_CACHE_ENABLED` (default `true`)
 - `RBAC_PERMISSION_CACHE_TTL` (default `5m`)
 - `REDIS_ADDR`, `REDIS_PASSWORD`, `REDIS_DB`, `RATE_LIMIT_REDIS_PREFIX`
 - `IDEMPOTENCY_REDIS_PREFIX` (default `idem`)
 - `ADMIN_LIST_CACHE_REDIS_PREFIX` (default `admin_list_cache`)
+- `NEGATIVE_LOOKUP_CACHE_REDIS_PREFIX` (default `negative_lookup_cache`)
 - `RBAC_PERMISSION_CACHE_REDIS_PREFIX` (default `rbac_perm`)
 - `READINESS_PROBE_TIMEOUT` (default `1s`)
 - `SERVER_START_GRACE_PERIOD` (default `2s`)
@@ -430,6 +433,7 @@ OpenAPI spec:
 - Scoped mutating endpoints enforce idempotency keys with replay/conflict semantics (`Idempotency-Key`).
 - Admin list endpoints (`/admin/users`, `/admin/roles`, `/admin/permissions`) use read-through Redis cache with actor-scoped query keys and short TTL.
 - RBAC/admin mutations invalidate affected admin list cache namespaces to prevent stale list responses.
+- Safe non-auth-critical RBAC entity lookups (`role/permission by id` in admin write flows) use short-lived negative caching for repeated not-found IDs.
 - `GET /api/v1/admin/roles` and `GET /api/v1/admin/permissions` also support conditional HTTP caching with `ETag` and `If-None-Match` (`304 Not Modified` on match).
 - Cache-miss bursts are protected with in-process `singleflight` dedupe for admin list reads and RBAC permission resolution.
 
@@ -459,6 +463,21 @@ OpenAPI spec:
   - `PATCH /admin/users/{id}/roles` -> invalidate target user
   - RBAC role/permission create/update/delete and `POST /admin/rbac/sync` -> invalidate all
 - Failure mode: fail closed on permission resolution errors (`503 RBAC_UNAVAILABLE`)
+
+## Negative Lookup Cache Policy
+
+- Purpose: reduce repeated DB reads for known-missing RBAC entities on safe admin paths.
+- Default TTL: `15s` (`NEGATIVE_LOOKUP_CACHE_TTL`)
+- Namespaces:
+  - `admin.role.not_found`
+  - `admin.permission.not_found`
+- Read path usage:
+  - `PATCH /admin/roles/{id}`, `DELETE /admin/roles/{id}`
+  - `PATCH /admin/permissions/{id}`, `DELETE /admin/permissions/{id}`
+- Invalidation:
+  - role create/update/delete -> invalidate `admin.role.not_found`
+  - permission create/update/delete -> invalidate `admin.permission.not_found`
+  - `POST /admin/rbac/sync` -> invalidate both namespaces
 
 ## Audit Taxonomy
 

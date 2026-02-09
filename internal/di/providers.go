@@ -76,6 +76,7 @@ var HTTPSet = wire.NewSet(
 	provideRBACPermissionCacheStore,
 	providePermissionResolver,
 	provideAdminListCacheStore,
+	provideNegativeLookupCacheStore,
 	handler.NewAdminHandler,
 	provideGlobalRateLimiter,
 	provideAuthRateLimiter,
@@ -136,7 +137,11 @@ func provideRuntimeDB(cfg *config.Config) (*gorm.DB, error) {
 }
 
 func provideRedisClient(cfg *config.Config) redis.UniversalClient {
-	if !cfg.RateLimitRedisEnabled && (!cfg.IdempotencyEnabled || !cfg.IdempotencyRedisEnabled) && !cfg.AdminListCacheEnabled && !cfg.RBACPermissionCacheEnabled {
+	if !cfg.RateLimitRedisEnabled &&
+		(!cfg.IdempotencyEnabled || !cfg.IdempotencyRedisEnabled) &&
+		!cfg.AdminListCacheEnabled &&
+		!cfg.NegativeLookupCacheEnabled &&
+		!cfg.RBACPermissionCacheEnabled {
 		return nil
 	}
 	return redis.NewClient(&redis.Options{
@@ -168,6 +173,16 @@ func provideAdminListCacheStore(cfg *config.Config, redisClient redis.UniversalC
 		return service.NewNoopAdminListCacheStore()
 	}
 	return service.NewRedisAdminListCacheStore(redisClient, cfg.AdminListCacheRedisPrefix)
+}
+
+func provideNegativeLookupCacheStore(cfg *config.Config, redisClient redis.UniversalClient) service.NegativeLookupCacheStore {
+	if !cfg.NegativeLookupCacheEnabled {
+		return service.NewNoopNegativeLookupCacheStore()
+	}
+	if redisClient == nil {
+		return service.NewNoopNegativeLookupCacheStore()
+	}
+	return service.NewRedisNegativeLookupCacheStore(redisClient, cfg.NegativeLookupCacheRedisPref)
 }
 
 func provideIdempotencyStore(cfg *config.Config, db *gorm.DB, redisClient redis.UniversalClient) service.IdempotencyStore {

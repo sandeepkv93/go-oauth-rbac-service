@@ -11,6 +11,8 @@ go_library(
         "idempotency_store_db.go",
         "idempotency_store_redis.go",
         "interfaces.go",
+        "negative_lookup_cache.go",
+        "negative_lookup_cache_redis.go",
         "oauth_service.go",
         "rbac_permission_cache_store.go",
         "rbac_permission_cache_store_redis.go",
@@ -42,6 +44,7 @@ go_test(
     srcs = [
         "admin_list_cache_test.go",
         "auth_password_policy_test.go",
+        "negative_lookup_cache_test.go",
         "rbac_permission_resolver_test.go",
         "rbac_service_test.go",
         "token_service_test.go",

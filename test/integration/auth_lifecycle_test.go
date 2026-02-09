@@ -87,6 +87,7 @@ type authTestServerOptions struct {
 	verifyNotifier service.EmailVerificationNotifier
 	resetNotifier  service.PasswordResetNotifier
 	adminListCache service.AdminListCacheStore
+	negativeCache  service.NegativeLookupCacheStore
 	rbacPermCache  service.RBACPermissionCacheStore
 }
 
@@ -324,11 +325,15 @@ func newAuthTestServerWithOptions(t *testing.T, opts authTestServerOptions) (str
 		permissionCache = service.NewInMemoryRBACPermissionCacheStore()
 	}
 	permissionResolver := service.NewCachedPermissionResolver(permissionCache, userSvc, 5*time.Minute)
+	negativeCache := opts.negativeCache
+	if negativeCache == nil {
+		negativeCache = service.NewNoopNegativeLookupCacheStore()
+	}
 	var adminHandler *handler.AdminHandler
 	if opts.adminListCache != nil {
-		adminHandler = handler.NewAdminHandler(userSvc, userRepo, roleRepo, permRepo, rbac, permissionResolver, opts.adminListCache, db, cfg)
+		adminHandler = handler.NewAdminHandler(userSvc, userRepo, roleRepo, permRepo, rbac, permissionResolver, opts.adminListCache, negativeCache, db, cfg)
 	} else {
-		adminHandler = handler.NewAdminHandler(userSvc, userRepo, roleRepo, permRepo, rbac, permissionResolver, service.NewNoopAdminListCacheStore(), db, cfg)
+		adminHandler = handler.NewAdminHandler(userSvc, userRepo, roleRepo, permRepo, rbac, permissionResolver, service.NewNoopAdminListCacheStore(), negativeCache, db, cfg)
 	}
 	var idempotencyFactory router.IdempotencyMiddlewareFactory
 	if cfg.IdempotencyEnabled {

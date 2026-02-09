@@ -54,9 +54,10 @@ func TestProvideApp(t *testing.T) {
 
 func TestProvideRedisClientEnabledForAdminListCache(t *testing.T) {
 	cfg := &config.Config{
-		AdminListCacheEnabled: false,
-		RateLimitRedisEnabled: false,
-		IdempotencyEnabled:    false,
+		AdminListCacheEnabled:      false,
+		NegativeLookupCacheEnabled: false,
+		RateLimitRedisEnabled:      false,
+		IdempotencyEnabled:         false,
 	}
 	client := provideRedisClient(cfg)
 	if client != nil {
@@ -68,5 +69,12 @@ func TestProvideRedisClientEnabledForAdminListCache(t *testing.T) {
 	client = provideRedisClient(cfg)
 	if client == nil {
 		t.Fatal("expected redis client when admin list cache is enabled")
+	}
+
+	cfg.AdminListCacheEnabled = false
+	cfg.NegativeLookupCacheEnabled = true
+	client = provideRedisClient(cfg)
+	if client == nil {
+		t.Fatal("expected redis client when negative lookup cache is enabled")
 	}
 }
