@@ -4,7 +4,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.24.13-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## Starter Overview
+## Overview
 
 This repository is a production-oriented Go backend starter that brings together authentication, authorization, observability, and delivery tooling in one baseline:
 
