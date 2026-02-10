@@ -81,6 +81,7 @@ var HTTPSet = wire.NewSet(
 	provideGlobalRateLimiter,
 	provideAuthRateLimiter,
 	provideForgotRateLimiter,
+	provideRouteRateLimitPolicies,
 	provideIdempotencyStore,
 	provideIdempotencyMiddlewareFactory,
 	provideRouterDependencies,
@@ -270,6 +271,78 @@ func provideForgotRateLimiter(cfg *config.Config, redisClient redis.UniversalCli
 	return middleware.NewRateLimiter(cfg.AuthPasswordForgotRateLimitPerMin, time.Minute).Middleware()
 }
 
+func provideRouteRateLimitPolicies(cfg *config.Config, redisClient redis.UniversalClient, jwt *security.JWTManager) router.RouteRateLimitPolicies {
+	policies := make(router.RouteRateLimitPolicies, 4)
+	policies[router.RoutePolicyLogin] = buildRoutePolicyLimiter(
+		cfg,
+		redisClient,
+		"route:login",
+		cfg.RateLimitLoginPerMin,
+		middleware.FailClosed,
+		"route_login",
+		nil,
+	)
+	policies[router.RoutePolicyRefresh] = buildRoutePolicyLimiter(
+		cfg,
+		redisClient,
+		"route:refresh",
+		cfg.RateLimitRefreshPerMin,
+		middleware.FailClosed,
+		"route_refresh",
+		middleware.SubjectOrIPKeyFunc(jwt),
+	)
+	subjectKey := middleware.SubjectOrIPKeyFunc(jwt)
+	policies[router.RoutePolicyAdminWrite] = buildRoutePolicyLimiter(
+		cfg,
+		redisClient,
+		"route:admin:write",
+		cfg.RateLimitAdminWritePerMin,
+		middleware.FailClosed,
+		"route_admin_write",
+		subjectKey,
+	)
+	policies[router.RoutePolicyAdminSync] = buildRoutePolicyLimiter(
+		cfg,
+		redisClient,
+		"route:admin:sync",
+		cfg.RateLimitAdminSyncPerMin,
+		middleware.FailClosed,
+		"route_admin_sync",
+		subjectKey,
+	)
+	return policies
+}
+
+func buildRoutePolicyLimiter(
+	cfg *config.Config,
+	redisClient redis.UniversalClient,
+	redisSuffix string,
+	limit int,
+	mode middleware.FailureMode,
+	scope string,
+	keyFunc func(*http.Request) string,
+) func(http.Handler) http.Handler {
+	if cfg.RateLimitRedisEnabled && redisClient != nil {
+		redisLimiter := middleware.NewRedisFixedWindowLimiter(redisClient, cfg.RateLimitRedisPrefix+":"+redisSuffix)
+		return middleware.NewDistributedRateLimiterWithKey(
+			redisLimiter,
+			limit,
+			time.Minute,
+			mode,
+			scope,
+			keyFunc,
+		).Middleware()
+	}
+	return middleware.NewDistributedRateLimiterWithKey(
+		middleware.NewLocalFixedWindowLimiter(),
+		limit,
+		time.Minute,
+		mode,
+		scope,
+		keyFunc,
+	).Middleware()
+}
+
 func provideRouterDependencies(
 	authHandler *handler.AuthHandler,
 	userHandler *handler.UserHandler,
@@ -280,6 +353,7 @@ func provideRouterDependencies(
 	globalRateLimiter router.GlobalRateLimiterFunc,
 	authRateLimiter router.AuthRateLimiterFunc,
 	forgotRateLimiter router.ForgotRateLimiterFunc,
+	routePolicies router.RouteRateLimitPolicies,
 	idempotencyFactory router.IdempotencyMiddlewareFactory,
 	readiness *health.ProbeRunner,
 	cfg *config.Config,
@@ -298,6 +372,7 @@ func provideRouterDependencies(
 		GlobalRateLimiter:          globalRateLimiter,
 		AuthRateLimiter:            authRateLimiter,
 		ForgotRateLimiter:          forgotRateLimiter,
+		RouteRateLimitPolicies:     routePolicies,
 		Idempotency:                idempotencyFactory,
 		Readiness:                  readiness,
 		EnableOTelHTTP:             cfg.OTELMetricsEnabled || cfg.OTELTracingEnabled,

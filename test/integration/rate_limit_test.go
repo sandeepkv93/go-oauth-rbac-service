@@ -8,7 +8,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/config"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/http/middleware"
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/http/router"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/security"
 )
 
@@ -91,4 +93,99 @@ func TestRateLimiterSubjectKeyingAcrossIPs(t *testing.T) {
 	if w4.Code != http.StatusOK {
 		t.Fatalf("expected different user on same IP to have separate quota, got %d", w4.Code)
 	}
+}
+
+func TestRoutePolicyMapLoginAndRefreshLimits(t *testing.T) {
+	jwtMgr := security.NewJWTManager(
+		"iss",
+		"aud",
+		"abcdefghijklmnopqrstuvwxyz123456",
+		"abcdefghijklmnopqrstuvwxyz654321",
+	)
+	policies := router.RouteRateLimitPolicies{
+		router.RoutePolicyLogin:   middleware.NewRateLimiter(1, time.Minute).Middleware(),
+		router.RoutePolicyRefresh: middleware.NewRateLimiterWithKey(1, time.Minute, middleware.SubjectOrIPKeyFunc(jwtMgr)).Middleware(),
+	}
+	baseURL, client, closeFn := newAuthTestServerWithOptions(t, authTestServerOptions{
+		routePolicies: policies,
+	})
+	defer closeFn()
+
+	registerAndLogin(t, client, baseURL, "route-policy-login-refresh@example.com", "Valid#Pass1234")
+
+	loginBody := map[string]string{
+		"email":    "route-policy-login-refresh@example.com",
+		"password": "Valid#Pass1234",
+	}
+	resp, _ := doJSON(t, client, http.MethodPost, baseURL+"/api/v1/auth/local/login", loginBody, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected first login attempt after register flow to pass, got %d", resp.StatusCode)
+	}
+	resp, _ = doJSON(t, client, http.MethodPost, baseURL+"/api/v1/auth/local/login", loginBody, nil)
+	if resp.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("expected second login attempt to be limited by route policy, got %d", resp.StatusCode)
+	}
+
+	csrf := cookieValue(t, client, baseURL, "csrf_token")
+	resp, _ = doJSON(t, client, http.MethodPost, baseURL+"/api/v1/auth/refresh", nil, map[string]string{
+		"X-CSRF-Token": csrf,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected first refresh to pass, got %d", resp.StatusCode)
+	}
+	resp, _ = doJSON(t, client, http.MethodPost, baseURL+"/api/v1/auth/refresh", nil, map[string]string{
+		"X-CSRF-Token": cookieValue(t, client, baseURL, "csrf_token"),
+	})
+	if resp.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("expected second refresh to be limited by route policy, got %d", resp.StatusCode)
+	}
+}
+
+func TestRoutePolicyMapAdminWriteAndSyncLimits(t *testing.T) {
+	jwtMgr := security.NewJWTManager(
+		"iss",
+		"aud",
+		"abcdefghijklmnopqrstuvwxyz123456",
+		"abcdefghijklmnopqrstuvwxyz654321",
+	)
+	policies := router.RouteRateLimitPolicies{
+		router.RoutePolicyAdminWrite: middleware.NewRateLimiterWithKey(1, time.Minute, middleware.SubjectOrIPKeyFunc(jwtMgr)).Middleware(),
+		router.RoutePolicyAdminSync:  middleware.NewRateLimiterWithKey(1, time.Minute, middleware.SubjectOrIPKeyFunc(jwtMgr)).Middleware(),
+	}
+	baseURL, client, closeFn := newAuthTestServerWithOptions(t, authTestServerOptions{
+		routePolicies: policies,
+		cfgOverride: func(cfg *config.Config) {
+			cfg.BootstrapAdminEmail = "route-policy-admin@example.com"
+		},
+	})
+	defer closeFn()
+
+	registerAndLogin(t, client, baseURL, "route-policy-admin@example.com", "Valid#Pass1234")
+
+	resp, _ := doJSON(t, client, http.MethodPost, baseURL+"/api/v1/admin/roles", map[string]any{
+		"name":        "route-policy-role-1",
+		"description": "policy test role",
+		"permissions": []string{"users:read"},
+	}, nil)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected first admin write to pass, got %d", resp.StatusCode)
+	}
+	resp, _ = doJSON(t, client, http.MethodPost, baseURL+"/api/v1/admin/roles", map[string]any{
+		"name":        "route-policy-role-2",
+		"description": "policy test role",
+		"permissions": []string{"users:read"},
+	}, nil)
+	if resp.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("expected second admin write to be limited, got %d", resp.StatusCode)
+	}
+
+	resp, _ = doJSON(t, client, http.MethodPost, baseURL+"/api/v1/admin/rbac/sync", nil, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected first sync to pass, got %d", resp.StatusCode)
+	}
+	resp, _ = doJSON(t, client, http.MethodPost, baseURL+"/api/v1/admin/rbac/sync", nil, nil)
+	if resp.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("expected second sync to be limited, got %d", resp.StatusCode)
+	}
+
 }

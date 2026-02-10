@@ -42,6 +42,11 @@ Scoped endpoints requiring `Idempotency-Key`:
 - For requests carrying a valid access token, the limiter key is `sub:<user_id>`.
 - For requests without a valid access token, the limiter key falls back to client IP.
 - Auth and forgot-password limiter scopes keep their existing behavior and failure modes.
+- Per-route policy map applies distinct limits for:
+  - `POST /api/v1/auth/local/login`
+  - `POST /api/v1/auth/refresh`
+  - Admin write endpoints under `/api/v1/admin/*` (mutating role/permission/user-role routes)
+  - `POST /api/v1/admin/rbac/sync`
 
 ## Audit Taxonomy
 

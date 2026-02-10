@@ -44,6 +44,10 @@ type Config struct {
 
 	AuthRateLimitPerMin          int
 	APIRateLimitPerMin           int
+	RateLimitLoginPerMin         int
+	RateLimitRefreshPerMin       int
+	RateLimitAdminWritePerMin    int
+	RateLimitAdminSyncPerMin     int
 	AdminListCacheEnabled        bool
 	AdminListCacheTTL            time.Duration
 	AdminListCacheRedisPrefix    string
@@ -118,6 +122,10 @@ func Load() (*Config, error) {
 		BootstrapAdminEmail:               strings.TrimSpace(strings.ToLower(os.Getenv("BOOTSTRAP_ADMIN_EMAIL"))),
 		AuthRateLimitPerMin:               getEnvInt("AUTH_RATE_LIMIT_PER_MIN", 30),
 		APIRateLimitPerMin:                getEnvInt("API_RATE_LIMIT_PER_MIN", 120),
+		RateLimitLoginPerMin:              getEnvInt("RATE_LIMIT_LOGIN_PER_MIN", 20),
+		RateLimitRefreshPerMin:            getEnvInt("RATE_LIMIT_REFRESH_PER_MIN", 30),
+		RateLimitAdminWritePerMin:         getEnvInt("RATE_LIMIT_ADMIN_WRITE_PER_MIN", 30),
+		RateLimitAdminSyncPerMin:          getEnvInt("RATE_LIMIT_ADMIN_SYNC_PER_MIN", 10),
 		AdminListCacheEnabled:             getEnvBool("ADMIN_LIST_CACHE_ENABLED", true),
 		AdminListCacheRedisPrefix:         getEnv("ADMIN_LIST_CACHE_REDIS_PREFIX", "admin_list_cache"),
 		NegativeLookupCacheEnabled:        getEnvBool("NEGATIVE_LOOKUP_CACHE_ENABLED", true),
@@ -293,6 +301,18 @@ func (c *Config) Validate() error {
 	}
 	if c.APIRateLimitPerMin <= 0 {
 		errs = append(errs, "API_RATE_LIMIT_PER_MIN must be > 0")
+	}
+	if c.RateLimitLoginPerMin <= 0 {
+		errs = append(errs, "RATE_LIMIT_LOGIN_PER_MIN must be > 0")
+	}
+	if c.RateLimitRefreshPerMin <= 0 {
+		errs = append(errs, "RATE_LIMIT_REFRESH_PER_MIN must be > 0")
+	}
+	if c.RateLimitAdminWritePerMin <= 0 {
+		errs = append(errs, "RATE_LIMIT_ADMIN_WRITE_PER_MIN must be > 0")
+	}
+	if c.RateLimitAdminSyncPerMin <= 0 {
+		errs = append(errs, "RATE_LIMIT_ADMIN_SYNC_PER_MIN must be > 0")
 	}
 	if c.AdminListCacheEnabled && (c.AdminListCacheTTL <= 0 || c.AdminListCacheTTL > (10*time.Minute)) {
 		errs = append(errs, "ADMIN_LIST_CACHE_TTL must be between 1s and 10m when admin list cache is enabled")

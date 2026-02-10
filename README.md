@@ -325,6 +325,10 @@ Configuration is loaded and validated in `internal/config/config.go`.
 - `RBAC_PROTECTED_PERMISSIONS` (default includes core admin permissions)
 - `AUTH_RATE_LIMIT_PER_MIN` (default `30`)
 - `API_RATE_LIMIT_PER_MIN` (default `120`)
+- `RATE_LIMIT_LOGIN_PER_MIN` (default `20`)
+- `RATE_LIMIT_REFRESH_PER_MIN` (default `30`)
+- `RATE_LIMIT_ADMIN_WRITE_PER_MIN` (default `30`)
+- `RATE_LIMIT_ADMIN_SYNC_PER_MIN` (default `10`)
 - `RATE_LIMIT_REDIS_ENABLED` (default `true`)
 - `IDEMPOTENCY_ENABLED` (default `true`)
 - `IDEMPOTENCY_REDIS_ENABLED` (default `true`, falls back to DB store when disabled)
@@ -440,6 +444,11 @@ OpenAPI spec:
 - RBAC is permission-based and enforced in route middleware.
 - RBAC permission checks use a short-lived user/session cache with invalidation on RBAC mutations.
 - Auth and API endpoints use separate fixed-window rate limiters.
+- Route policy map applies endpoint-specific fixed-window limits for:
+  - login (`/api/v1/auth/local/login`)
+  - refresh (`/api/v1/auth/refresh`)
+  - admin writes (`PATCH /admin/users/{id}/roles`, role/permission write routes)
+  - RBAC sync (`POST /api/v1/admin/rbac/sync`)
 - API limiter keys authenticated requests by access-token subject (`sub:<user_id>`) and falls back to client IP when no valid access token is present.
 - Forgot-password rate limiting is Redis-distributed when `RATE_LIMIT_REDIS_ENABLED=true`, with fail-closed fallback semantics for backend errors.
 - Scoped mutating endpoints enforce idempotency keys with replay/conflict semantics (`Idempotency-Key`).

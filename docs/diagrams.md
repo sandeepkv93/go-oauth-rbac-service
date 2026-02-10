@@ -180,6 +180,39 @@ sequenceDiagram
 
 Source: `docs/diagrams/api-rate-limiter-key-flow.mmd`
 
+## Route Rate-Limit Policy Map Flow
+
+```mermaid
+flowchart TD
+    Req[Incoming Request] --> Match[Route Matcher]
+
+    Match --> Login{POST /auth/local/login}
+    Match --> Refresh{POST /auth/refresh}
+    Match --> AdminWrite{Admin write route}
+    Match --> AdminSync{POST /admin/rbac/sync}
+    Match --> Default[Fallback policy path]
+
+    Login --> P1[Policy: login]
+    Refresh --> P2[Policy: refresh]
+    AdminWrite --> P3[Policy: admin_write]
+    AdminSync --> P4[Policy: admin_sync]
+    Default --> P0[Global/Auth/Forgot baseline limiters]
+
+    P1 --> KeyIP[key: client_ip]
+    P2 --> KeySubOrIP[key: sub:user_id or client_ip]
+    P3 --> KeySubOrIP
+    P4 --> KeySubOrIP
+
+    KeyIP --> Store[Redis or local fixed-window store]
+    KeySubOrIP --> Store
+    P0 --> Store
+    Store --> Decision{Within limit?}
+    Decision -->|yes| Pass[Continue to handler]
+    Decision -->|no| Throttle[429 RATE_LIMITED + Retry-After]
+```
+
+Source: `docs/diagrams/route-rate-limit-policy-map-flow.mmd`
+
 ## Admin RBAC Write and Sync Flow
 
 ```mermaid

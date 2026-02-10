@@ -89,6 +89,7 @@ type authTestServerOptions struct {
 	adminListCache service.AdminListCacheStore
 	negativeCache  service.NegativeLookupCacheStore
 	rbacPermCache  service.RBACPermissionCacheStore
+	routePolicies  router.RouteRateLimitPolicies
 }
 
 func TestAuthLifecycleLoginRefreshLogoutRevoked(t *testing.T) {
@@ -355,6 +356,7 @@ func newAuthTestServerWithOptions(t *testing.T, opts authTestServerOptions) (str
 		AuthRateLimitRPM:           1000,
 		PasswordForgotRateLimitRPM: 1000,
 		APIRateLimitRPM:            1000,
+		RouteRateLimitPolicies:     opts.routePolicies,
 		Idempotency:                idempotencyFactory,
 		EnableOTelHTTP:             false,
 	})
