@@ -111,7 +111,7 @@ func TestRoutePolicyMapLoginAndRefreshLimits(t *testing.T) {
 	})
 	defer closeFn()
 
-	registerAndLogin(t, client, baseURL, "route-policy-login-refresh@example.com", "Valid#Pass1234")
+	registerOnly(t, client, baseURL, "route-policy-login-refresh@example.com")
 
 	loginBody := map[string]string{
 		"email":    "route-policy-login-refresh@example.com",
