@@ -40,4 +40,5 @@ go_test(
         "redis_metrics_test.go",
     ],
     embed = [":observability"],
+    deps = ["@com_github_redis_go_redis_v9//:go-redis"],
 )
