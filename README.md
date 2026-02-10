@@ -4,6 +4,15 @@
 [![Go Version](https://img.shields.io/badge/Go-1.24.13-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Tech Stack](#tech-stack)
+- [Architecture at a Glance](#architecture-at-a-glance)
+- [Quick Start](#quick-start)
+- [Documentation](#documentation)
+- [License](#license)
+
 ## Overview
 
 This repository is a production-oriented Go backend starter that brings together authentication, authorization, observability, and delivery tooling in one baseline:
@@ -23,14 +32,21 @@ This repository is a production-oriented Go backend starter that brings together
 - Docker Compose local stack for DB + observability
 - CI + local hooks enforcing build/test/generation hygiene
 
-## Overall architecture and flow
+## Tech Stack
 
-- **Request path:**
-  Chi router + middleware chain (`internal/http/router`) --> handler layer (`internal/http/handler`) --> service layer (`internal/service`) --> repository layer (`internal/repository`) --> GORM + Postgres (`internal/database`)
-- **Cross-cutting:**
-  security middleware for headers, CSRF, request ID, and rate limiting; Redis-backed caching and limiter policies; structured logging with trace/span correlation fields; OTel tracing, metrics (with exemplars), and logs export via collector
-- **Dependency injection:**
-  providers and wiring in `internal/di`, with generated wiring verified in CI
+- Language/runtime: Go `1.24.13`
+- HTTP framework: Chi (`github.com/go-chi/chi/v5`)
+- Persistence: PostgreSQL + GORM
+- Cache/rate limiting/idempotency backend: Redis
+- Auth: Google OAuth + cookie-based JWT (access/refresh)
+- Observability: OpenTelemetry + OTel Collector + Grafana + Tempo + Loki + Mimir
+- Tooling: Task, Bazel/Bazelisk, Gazelle, Wire, golangci-lint, gosec, govulncheck, gitleaks
+
+## Architecture at a Glance
+
+- Request path: `internal/http` -> `internal/service` -> `internal/repository` -> `internal/database`
+- Cross-cutting concerns: `internal/security`, `internal/observability`, middleware, and Redis-backed controls
+- Dependency injection: `internal/di` (Wire-generated injectors validated in CI)
 
 ```mermaid
 flowchart LR
@@ -70,14 +86,20 @@ flowchart LR
 - [Bazelisk](https://github.com/bazelbuild/bazelisk)
 - Docker + Docker Compose
 
-### Clone the repo and cd into it:
+### Clone the repo and move into it
 
 ```bash
 git clone git@github.com:sandeepkv93/secure-observable-go-backend-starter-kit.git
 cd secure-observable-go-backend-starter-kit
 ```
 
-### Run locally:
+### Configure environment
+
+```bash
+cp .env.example .env
+```
+
+### Start local dependencies and run API
 
 ```bash
 task docker-up
@@ -86,7 +108,18 @@ task seed
 task run
 ```
 
-### Useful commands:
+### Expected success checks
+
+```bash
+curl -sSf http://localhost:8080/health/live
+curl -sSf http://localhost:8080/health/ready
+```
+
+Endpoints:
+- API base URL: `http://localhost:8080`
+- Grafana UI: `http://localhost:3000` (`admin` / `admin`)
+
+### Useful commands
 
 ```bash
 task test
@@ -98,7 +131,7 @@ task obs-validate
 ## Documentation
 
 - [Project guide (full documentation)](docs/project-guide.md)
-- [Architecture and flow diagrams](docs/architecture.md)
+- [Architecture and flow diagrams](docs/diagrams.md)
 - [Audit Taxonomy](docs/audit-taxonomy.md)
 
 ## License

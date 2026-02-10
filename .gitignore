@@ -1,4 +1,6 @@
 .env
+.codex/
+.agent-cache/
 bin/
 dist/
 coverage.out
