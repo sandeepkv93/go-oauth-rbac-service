@@ -78,6 +78,7 @@ Your command surface stays simple, for example:
 - `task test:forgot-rate-limiter`
 - `task test:problem-details`
 - `task test:idempotency`
+- `task test:redis-race`
 - `task test:audit`
 - `task security`
 
@@ -132,6 +133,10 @@ Run only forgot-password distributed limiter wiring tests:
 Run only problem-details negotiation tests:
 
 - `task test:problem-details`
+
+Run only Redis race/replay integration tests (requires Docker):
+
+- `task test:redis-race`
 
 Run all tests:
 
