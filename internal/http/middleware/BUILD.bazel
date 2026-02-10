@@ -28,4 +28,5 @@ go_test(
     name = "middleware_test",
     srcs = ["rate_limit_middleware_test.go"],
     embed = [":middleware"],
+    deps = ["//internal/security"],
 )
