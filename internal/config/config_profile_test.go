@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -494,6 +495,52 @@ func TestValidateRateLimitRedisOutagePolicies(t *testing.T) {
 	cfg.RateLimitOutagePolicyRefresh = "drop_requests"
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected validation error for invalid redis outage policy")
+	}
+}
+
+func TestValidateProdProfileDisallowsFailOpenForSensitiveRateLimitScopes(t *testing.T) {
+	cfg := newValidConfigForProfileTests()
+	cfg.Env = "production"
+	cfg.CookieSecure = true
+	cfg.CookieSameSite = "lax"
+	cfg.OTELTraceSamplingRatio = 0.1
+	cfg.RedisAddr = "redis.internal:6379"
+	cfg.RedisUsername = "svc-app"
+	cfg.RedisPassword = "super-secret-value"
+	cfg.RedisTLSEnabled = true
+	cfg.RedisTLSServerName = "redis.internal"
+	cfg.RateLimitRedisEnabled = true
+
+	cfg.RateLimitOutagePolicyAuth = "fail_open"
+	cfg.RateLimitOutagePolicyForgot = "fail_open"
+	cfg.RateLimitOutagePolicyLogin = "fail_open"
+	cfg.RateLimitOutagePolicyAdminW = "fail_open"
+	cfg.RateLimitOutagePolicyAdminS = "fail_open"
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected validation error for fail_open policy on sensitive scopes in production")
+	}
+	msg := err.Error()
+	for _, token := range []string{
+		"RATE_LIMIT_REDIS_OUTAGE_POLICY_AUTH",
+		"RATE_LIMIT_REDIS_OUTAGE_POLICY_FORGOT",
+		"RATE_LIMIT_REDIS_OUTAGE_POLICY_ROUTE_LOGIN",
+		"RATE_LIMIT_REDIS_OUTAGE_POLICY_ROUTE_ADMIN_WRITE",
+		"RATE_LIMIT_REDIS_OUTAGE_POLICY_ROUTE_ADMIN_SYNC",
+	} {
+		if !strings.Contains(msg, token) {
+			t.Fatalf("expected validation error to include %s, got: %s", token, msg)
+		}
+	}
+
+	cfg.RateLimitOutagePolicyAuth = "fail_closed"
+	cfg.RateLimitOutagePolicyForgot = "fail_closed"
+	cfg.RateLimitOutagePolicyLogin = "fail_closed"
+	cfg.RateLimitOutagePolicyAdminW = "fail_closed"
+	cfg.RateLimitOutagePolicyAdminS = "fail_closed"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected production config with fail_closed policies to pass validation: %v", err)
 	}
 }
 

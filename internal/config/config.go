@@ -634,6 +634,21 @@ func (c *Config) Validate() error {
 			looksPlaceholder(c.RefreshTokenPepper) || looksPlaceholder(c.StateSigningSecret) {
 			errs = append(errs, "secrets must not use placeholder values in production/staging")
 		}
+		if strings.EqualFold(c.RateLimitOutagePolicyAuth, stringFailOpen()) {
+			errs = append(errs, "RATE_LIMIT_REDIS_OUTAGE_POLICY_AUTH must be fail_closed in production/staging")
+		}
+		if strings.EqualFold(c.RateLimitOutagePolicyForgot, stringFailOpen()) {
+			errs = append(errs, "RATE_LIMIT_REDIS_OUTAGE_POLICY_FORGOT must be fail_closed in production/staging")
+		}
+		if strings.EqualFold(c.RateLimitOutagePolicyLogin, stringFailOpen()) {
+			errs = append(errs, "RATE_LIMIT_REDIS_OUTAGE_POLICY_ROUTE_LOGIN must be fail_closed in production/staging")
+		}
+		if strings.EqualFold(c.RateLimitOutagePolicyAdminW, stringFailOpen()) {
+			errs = append(errs, "RATE_LIMIT_REDIS_OUTAGE_POLICY_ROUTE_ADMIN_WRITE must be fail_closed in production/staging")
+		}
+		if strings.EqualFold(c.RateLimitOutagePolicyAdminS, stringFailOpen()) {
+			errs = append(errs, "RATE_LIMIT_REDIS_OUTAGE_POLICY_ROUTE_ADMIN_SYNC must be fail_closed in production/staging")
+		}
 	}
 	if redisRequired && !isLocalLikeEnv(c.Env) {
 		if strings.TrimSpace(c.RedisUsername) == "" {
@@ -683,6 +698,10 @@ func isValidRateLimitOutagePolicy(v string) bool {
 	default:
 		return false
 	}
+}
+
+func stringFailOpen() string {
+	return "fail_open"
 }
 
 func (c *Config) isProdLike() bool {

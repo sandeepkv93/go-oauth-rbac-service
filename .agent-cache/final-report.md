@@ -4,15 +4,17 @@
 Complete.
 
 ## Delivered
-- Configurable Redis outage policy by scope:
-  - api, auth, forgot
-  - route_login, route_refresh, route_admin_write, route_admin_sync
-- Strict validation for allowed values (`fail_open|fail_closed`).
-- Runtime wiring in DI for each limiter scope.
-- Test coverage and docs/env updates.
+- Production/staging now rejects `fail_open` for sensitive Redis outage scopes:
+  - `RATE_LIMIT_REDIS_OUTAGE_POLICY_AUTH`
+  - `RATE_LIMIT_REDIS_OUTAGE_POLICY_FORGOT`
+  - `RATE_LIMIT_REDIS_OUTAGE_POLICY_ROUTE_LOGIN`
+  - `RATE_LIMIT_REDIS_OUTAGE_POLICY_ROUTE_ADMIN_WRITE`
+  - `RATE_LIMIT_REDIS_OUTAGE_POLICY_ROUTE_ADMIN_SYNC`
+- Added validation coverage for reject and accept paths.
+- Updated production hardening documentation.
 
 ## Residual Risks
-- Misconfiguration can still weaken protections if operators set fail-open broadly.
+- API and route_refresh scopes remain operator-configurable by design.
 
 ## Rollback
-- Revert commit if needed.
+- Revert this commit.

@@ -422,6 +422,7 @@ OTel:
 - Redis-backed rate limiting enabled
 - non-loopback Redis address
 - Redis ACL and TLS are enforced for non-local environments (`REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_TLS_ENABLED=true`, `REDIS_TLS_SERVER_NAME`)
+- sensitive Redis outage policies are fail-closed in production/staging (`RATE_LIMIT_REDIS_OUTAGE_POLICY_AUTH`, `RATE_LIMIT_REDIS_OUTAGE_POLICY_FORGOT`, `RATE_LIMIT_REDIS_OUTAGE_POLICY_ROUTE_LOGIN`, `RATE_LIMIT_REDIS_OUTAGE_POLICY_ROUTE_ADMIN_WRITE`, `RATE_LIMIT_REDIS_OUTAGE_POLICY_ROUTE_ADMIN_SYNC`)
 - bounded sampling ratio (`OTEL_TRACE_SAMPLING_RATIO <= 0.2`)
 - non-placeholder secrets
 
