@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"
 
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/config"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/database"
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/observability"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/tools/common"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/tools/ui"
 )
@@ -36,7 +38,7 @@ func newApplyCommand(opts *options) *cobra.Command {
 		Use:   "apply",
 		Short: "Apply default seed data",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			details, err := run(opts, "seed apply", func(ctx context.Context) ([]string, error) {
+			details, err := run(opts, "seed apply", "apply", func(ctx context.Context) ([]string, error) {
 				cfg, db, err := loadConfigDB(opts.envFile)
 				if err != nil {
 					return nil, err
@@ -70,7 +72,7 @@ func newDryRunCommand(opts *options) *cobra.Command {
 		Use:   "dry-run",
 		Short: "Show what seeding would do",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			details, err := run(opts, "seed dry-run", func(ctx context.Context) ([]string, error) {
+			details, err := run(opts, "seed dry-run", "dry_run", func(ctx context.Context) ([]string, error) {
 				cfg, _, err := loadConfigDB(opts.envFile)
 				if err != nil {
 					return nil, err
@@ -106,7 +108,7 @@ func newVerifyLocalEmailCommand(opts *options) *cobra.Command {
 		Use:   "verify-local-email",
 		Short: "Mark local credential email as verified",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			details, err := run(opts, "seed verify-local-email", func(ctx context.Context) ([]string, error) {
+			details, err := run(opts, "seed verify-local-email", "verify_local_email", func(ctx context.Context) ([]string, error) {
 				if strings.TrimSpace(email) == "" {
 					return nil, fmt.Errorf("email is required")
 				}
@@ -132,11 +134,29 @@ func newVerifyLocalEmailCommand(opts *options) *cobra.Command {
 	return cmd
 }
 
-func run(opts *options, title string, fn func(context.Context) ([]string, error)) ([]string, error) {
+func run(opts *options, title, command string, fn func(context.Context) ([]string, error)) ([]string, error) {
 	if opts.ci {
-		return fn(context.Background())
+		ctx := context.Background()
+		start := time.Now()
+		details, err := fn(ctx)
+		recordToolMetrics(ctx, command, start, err)
+		return details, err
 	}
-	return ui.Run(title, fn)
+	return ui.Run(title, func(ctx context.Context) ([]string, error) {
+		start := time.Now()
+		details, err := fn(ctx)
+		recordToolMetrics(ctx, command, start, err)
+		return details, err
+	})
+}
+
+func recordToolMetrics(ctx context.Context, command string, start time.Time, err error) {
+	outcome := "success"
+	if err != nil {
+		outcome = "error"
+	}
+	observability.RecordToolCommandRun(ctx, "seed", command, outcome)
+	observability.RecordToolCommandDuration(ctx, "seed", command, outcome, time.Since(start))
 }
 
 func loadConfigDB(envFile string) (*config.Config, *gorm.DB, error) {

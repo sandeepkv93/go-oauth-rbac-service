@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/observability"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/tools/common"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/tools/loadgen"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/tools/ui"
@@ -46,7 +47,7 @@ func newRunCommand(opts *options) *cobra.Command {
 		Use:   "run",
 		Short: "Generate traffic and validate exemplar->trace->log path",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			details, err := run(opts, "obscheck run", func(ctx context.Context) ([]string, error) {
+			details, err := run(opts, "obscheck run", "run", func(ctx context.Context) ([]string, error) {
 				lgRes, err := loadgen.Run(ctx, loadgen.Config{
 					BaseURL:     opts.baseURL,
 					Profile:     "mixed",
@@ -90,13 +91,30 @@ func newRunCommand(opts *options) *cobra.Command {
 	}
 }
 
-func run(opts *options, title string, fn func(context.Context) ([]string, error)) ([]string, error) {
+func run(opts *options, title, command string, fn func(context.Context) ([]string, error)) ([]string, error) {
 	if opts.ci {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 		defer cancel()
-		return fn(ctx)
+		start := time.Now()
+		details, err := fn(ctx)
+		recordToolMetrics(ctx, command, start, err)
+		return details, err
 	}
-	return ui.Run(title, fn)
+	return ui.Run(title, func(ctx context.Context) ([]string, error) {
+		start := time.Now()
+		details, err := fn(ctx)
+		recordToolMetrics(ctx, command, start, err)
+		return details, err
+	})
+}
+
+func recordToolMetrics(ctx context.Context, command string, start time.Time, err error) {
+	outcome := "success"
+	if err != nil {
+		outcome = "error"
+	}
+	observability.RecordToolCommandRun(ctx, "obscheck", command, outcome)
+	observability.RecordToolCommandDuration(ctx, "obscheck", command, outcome, time.Since(start))
 }
 
 func grafanaGET(ctx context.Context, opts options, path string) ([]byte, error) {

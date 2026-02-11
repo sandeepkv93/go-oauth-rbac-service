@@ -9,6 +9,7 @@ go_library(
     importpath = "github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/tools/loadgen",
     visibility = ["//:__subpackages__"],
     deps = [
+        "//internal/observability",
         "//internal/tools/common",
         "//internal/tools/ui",
         "@com_github_spf13_cobra//:cobra",

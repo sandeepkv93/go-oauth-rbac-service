@@ -10,6 +10,7 @@ import (
 
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/config"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/database"
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/observability"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/tools/common"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/tools/ui"
 	"gorm.io/gorm"
@@ -44,7 +45,7 @@ func newUpCommand(opts *options) *cobra.Command {
 		Use:   "up",
 		Short: "Apply schema migrations",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			details, err := run(opts, "migrate up", func(ctx context.Context) ([]string, error) {
+			details, err := run(opts, "migrate up", "up", func(ctx context.Context) ([]string, error) {
 				cfg, db, err := loadConfigDB(opts.envFile)
 				if err != nil {
 					return nil, err
@@ -73,7 +74,7 @@ func newStatusCommand(opts *options) *cobra.Command {
 		Use:   "status",
 		Short: "Check migration prerequisites",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			details, err := run(opts, "migrate status", func(ctx context.Context) ([]string, error) {
+			details, err := run(opts, "migrate status", "status", func(ctx context.Context) ([]string, error) {
 				cfg, db, err := loadConfigDB(opts.envFile)
 				if err != nil {
 					return nil, err
@@ -101,7 +102,7 @@ func newPlanCommand(opts *options) *cobra.Command {
 		Use:   "plan",
 		Short: "Show migration plan (dry-run)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			details, err := run(opts, "migrate plan", func(ctx context.Context) ([]string, error) {
+			details, err := run(opts, "migrate plan", "plan", func(ctx context.Context) ([]string, error) {
 				_, db, err := loadConfigDB(opts.envFile)
 				if err != nil {
 					return nil, err
@@ -128,13 +129,30 @@ func newPlanCommand(opts *options) *cobra.Command {
 	}
 }
 
-func run(opts *options, title string, fn func(context.Context) ([]string, error)) ([]string, error) {
+func run(opts *options, title, command string, fn func(context.Context) ([]string, error)) ([]string, error) {
 	if opts.ci {
 		ctx, cancel := context.WithTimeout(context.Background(), opts.timeout)
 		defer cancel()
-		return fn(ctx)
+		start := time.Now()
+		details, err := fn(ctx)
+		recordToolMetrics(ctx, command, start, err)
+		return details, err
 	}
-	return ui.Run(title, fn)
+	return ui.Run(title, func(ctx context.Context) ([]string, error) {
+		start := time.Now()
+		details, err := fn(ctx)
+		recordToolMetrics(ctx, command, start, err)
+		return details, err
+	})
+}
+
+func recordToolMetrics(ctx context.Context, command string, start time.Time, err error) {
+	outcome := "success"
+	if err != nil {
+		outcome = "error"
+	}
+	observability.RecordToolCommandRun(ctx, "migrate", command, outcome)
+	observability.RecordToolCommandDuration(ctx, "migrate", command, outcome, time.Since(start))
 }
 
 func loadConfigDB(envFile string) (*config.Config, *gorm.DB, error) {

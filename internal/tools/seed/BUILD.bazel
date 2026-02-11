@@ -8,6 +8,7 @@ go_library(
     deps = [
         "//internal/config",
         "//internal/database",
+        "//internal/observability",
         "//internal/tools/common",
         "//internal/tools/ui",
         "@com_github_spf13_cobra//:cobra",

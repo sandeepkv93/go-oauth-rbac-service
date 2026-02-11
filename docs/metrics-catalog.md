@@ -48,6 +48,8 @@ Non-scope:
 | `idempotency.cleanup.runs` | Counter (int64) | 1 | `outcome` | `RecordIdempotencyCleanupRun` calls in `internal/service/idempotency_store_db.go` |
 | `idempotency.cleanup.deleted_rows` | Histogram (float64) | 1 | none | `RecordIdempotencyCleanupDeletedRows` calls in `internal/service/idempotency_store_db.go` |
 | `repository.operations` | Counter (int64) | 1 | `repo`, `op`, `outcome` | `RecordRepositoryOperation` calls in `internal/repository/*_repository.go` |
+| `tool.command.runs` | Counter (int64) | 1 | `tool`, `command`, `outcome` | `RecordToolCommandRun` calls in `internal/tools/*/command.go` |
+| `tool.command.duration` | Histogram (float64) | `s` | `tool`, `command`, `outcome` | `RecordToolCommandDuration` calls in `internal/tools/*/command.go` |
 | `admin.rbac.mutations` | Counter (int64) | 1 | `entity`, `action`, `status` | `RecordAdminRBACMutation` calls in `internal/http/handler/admin_handler.go` |
 | `admin.list.cache.events` | Counter (int64) | 1 | `endpoint`, `outcome` | `RecordAdminListCacheEvent` calls in `internal/http/handler/admin_handler.go` |
 | `auth.rbac.permission.cache.events` | Counter (int64) | 1 | `outcome` | `RecordRBACPermissionCacheEvent` calls in `internal/http/middleware/rbac_middleware.go`, `internal/service/rbac_permission_resolver.go`, `internal/http/handler/admin_handler.go` |
@@ -140,6 +142,16 @@ Non-scope:
 - `outcome`: `success`, `not_found`, `error`
 - representative `op` values: `find_by_id`, `find_by_email`, `list_paged`, `create`, `update`, `delete_by_id`, `rotate_session`, `revoke_by_user_id`
 
+`tool.command.runs`
+- `tool` currently emitted: `migrate`, `seed`, `loadgen`, `obscheck`
+- `command` examples: `up`, `status`, `plan`, `apply`, `dry_run`, `verify_local_email`, `run`
+- `outcome`: `success`, `error`
+
+`tool.command.duration`
+- `tool` currently emitted: `migrate`, `seed`, `loadgen`, `obscheck`
+- `command` examples: `up`, `status`, `plan`, `apply`, `dry_run`, `verify_local_email`, `run`
+- `outcome`: `success`, `error`
+
 `admin.rbac.mutations`
 - `entity`: `user_role`, `role`, `permission`, `sync`
 - `action`: `set_user_roles`, `create`, `update`, `delete`, `sync`
@@ -220,6 +232,10 @@ The exact auto-generated metric names are not hardcoded in this repository; they
 - `internal/repository/role_repository.go`
 - `internal/repository/permission_repository.go`
 - `internal/repository/session_repository.go`
+- `internal/tools/migrate/command.go`
+- `internal/tools/seed/command.go`
+- `internal/tools/loadgen/command.go`
+- `internal/tools/obscheck/command.go`
 - `internal/service/rbac_permission_resolver.go`
 - `internal/service/token_service.go`
 - `internal/http/router/router.go`

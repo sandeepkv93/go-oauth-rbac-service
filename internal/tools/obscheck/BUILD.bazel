@@ -6,6 +6,7 @@ go_library(
     importpath = "github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/tools/obscheck",
     visibility = ["//:__subpackages__"],
     deps = [
+        "//internal/observability",
         "//internal/tools/common",
         "//internal/tools/loadgen",
         "//internal/tools/ui",

@@ -47,6 +47,8 @@ type AppMetrics struct {
 	idempotencyCleanupCounter    metric.Int64Counter
 	idempotencyCleanupDeleted    metric.Float64Histogram
 	repositoryOpsCounter         metric.Int64Counter
+	toolCommandRuns              metric.Int64Counter
+	toolCommandDuration          metric.Float64Histogram
 }
 
 var (
@@ -239,6 +241,18 @@ func InitMetrics(ctx context.Context, cfg *config.Config, logger *slog.Logger) (
 	if err != nil {
 		return nil, err
 	}
+	toolCommandRuns, err := meter.Int64Counter("tool.command.runs")
+	if err != nil {
+		return nil, err
+	}
+	toolCommandDuration, err := meter.Float64Histogram(
+		"tool.command.duration",
+		metric.WithUnit("s"),
+		metric.WithDescription("Duration of tool command execution in seconds"),
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	metricsMu.Lock()
 	appMetrics = &AppMetrics{
@@ -270,6 +284,8 @@ func InitMetrics(ctx context.Context, cfg *config.Config, logger *slog.Logger) (
 		idempotencyCleanupCounter:    idempotencyCleanupCounter,
 		idempotencyCleanupDeleted:    idempotencyCleanupDeleted,
 		repositoryOpsCounter:         repositoryOpsCounter,
+		toolCommandRuns:              toolCommandRuns,
+		toolCommandDuration:          toolCommandDuration,
 	}
 	metricsMu.Unlock()
 
@@ -635,6 +651,34 @@ func RecordRepositoryOperation(ctx context.Context, repo, op, outcome string) {
 	m.repositoryOpsCounter.Add(ctx, 1, metric.WithAttributes(
 		attribute.String("repo", repo),
 		attribute.String("op", op),
+		attribute.String("outcome", outcome),
+	))
+}
+
+func RecordToolCommandRun(ctx context.Context, tool, command, outcome string) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.toolCommandRuns.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("tool", tool),
+		attribute.String("command", command),
+		attribute.String("outcome", outcome),
+	))
+}
+
+func RecordToolCommandDuration(ctx context.Context, tool, command, outcome string, duration time.Duration) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.toolCommandDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(
+		attribute.String("tool", tool),
+		attribute.String("command", command),
 		attribute.String("outcome", outcome),
 	))
 }
