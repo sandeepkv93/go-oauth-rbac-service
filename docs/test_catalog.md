@@ -4,11 +4,11 @@ Generated from repository test sources (`*_test.go`) and test function declarati
 
 ## Summary
 
-- Total test files: 58
-- Unit test files: 39
+- Total test files: 64
+- Unit test files: 45
 - Integration test files: 19
-- Total test functions: 192
-- Unit test functions: 143
+- Total test functions: 201
+- Unit test functions: 152
 - Integration test functions: 49
 
 ## Unit Tests
@@ -69,20 +69,30 @@ Generated from repository test sources (`*_test.go`) and test function declarati
   - `TestStateSignAndVerify`
 - `internal/service/admin_list_cache_test.go`
   - `TestInMemoryAdminListCacheStoreExpiry`, `TestNoopAdminListCacheStoreAlwaysMisses`, `TestInMemoryAdminListCacheStoreGetSetInvalidate`
+- `internal/service/admin_list_cache_redis_test.go`
+  - `TestRedisAdminListCacheStoreNamespaceIndexAndInvalidateIdempotency`, `TestRedisAdminListCacheStoreGetWithAgeMetaFallbacks`
 - `internal/service/auth_abuse_guard_test.go`
   - `TestInMemoryAuthAbuseGuardResetClearsCooldown`, `TestInMemoryAuthAbuseGuardDimensionIsolation`, `TestInMemoryAuthAbuseGuardExponentialCooldown`
+- `internal/service/auth_abuse_guard_redis_test.go`
+  - `TestRedisAuthAbuseGuardCooldownGrowthResetAndIsolation`, `TestRedisAuthAbuseGuardMalformedRedisValue`
 - `internal/service/auth_password_policy_test.go`
   - `TestValidatePasswordPolicy`
 - `internal/service/auth_service_test.go`
   - `TestAuthServiceRegisterLocalMatrix`, `TestAuthServiceLoginWithLocalPasswordMatrix`, `TestAuthServiceRequestAndConfirmEmailVerificationMatrix`, `TestAuthServiceForgotAndResetPasswordMatrix`, `TestAuthServiceChangeLocalPasswordMatrix`, `TestAuthServiceGoogleAndParseUserID`, `TestAuthServiceAssignBootstrapAdminIfNeededEdgeCases`
 - `internal/service/idempotency_store_db_test.go`
   - `TestDBIdempotencyStoreCleanupExpiredDeletesOnlyExpiredRows`, `TestDBIdempotencyStoreCleanupExpiredHonorsBatchSize`
+- `internal/service/idempotency_store_redis_test.go`
+  - `TestRedisIdempotencyStoreStateTransitionsAndTTLRefresh`, `TestRedisIdempotencyStoreMalformedReplayPayloads`
 - `internal/service/negative_lookup_cache_test.go`
   - `TestInMemoryNegativeLookupCacheStoreExpiry`, `TestNoopNegativeLookupCacheStoreAlwaysMisses`, `TestInMemoryNegativeLookupCacheStoreGetSetInvalidate`
+- `internal/service/negative_lookup_cache_redis_test.go`
+  - `TestRedisNegativeLookupCacheStoreSetGetInvalidateAndStale`
 - `internal/service/oauth_service_test.go`
   - `TestOAuthServiceHandleGoogleCallbackExchangeError`, `TestOAuthServiceHandleGoogleCallbackUserInfoError`, `TestOAuthServiceHandleGoogleCallbackEmailNotVerified`, `TestClassifyOAuthError`
 - `internal/service/rbac_permission_resolver_test.go`
   - `TestCachedPermissionResolverSingleflightDedupesConcurrentMisses`, `TestCachedPermissionResolverCachesBySession`, `TestCachedPermissionResolverInvalidateUser`
+- `internal/service/rbac_permission_cache_store_redis_test.go`
+  - `TestRedisRBACPermissionCacheStoreKeyingAndInvalidation`, `TestRedisRBACPermissionCacheStoreMalformedEpochValue`
 - `internal/service/rbac_service_test.go`
   - `TestRBACPermissionEvaluation`
 - `internal/service/token_service_test.go`

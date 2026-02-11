@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -181,6 +182,18 @@ func parseAuthAbuseRedisInt64(v interface{}) (int64, error) {
 		return int64(n), nil
 	case int:
 		return int64(n), nil
+	case string:
+		parsed, err := strconv.ParseInt(n, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("parse redis string int64: %w", err)
+		}
+		return parsed, nil
+	case []byte:
+		parsed, err := strconv.ParseInt(string(n), 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("parse redis bytes int64: %w", err)
+		}
+		return parsed, nil
 	default:
 		return 0, fmt.Errorf("unexpected redis response type %T", v)
 	}

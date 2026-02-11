@@ -11,10 +11,10 @@ This gap analysis covers the full repository (all `internal/**`, `cmd/**`, and `
 
 Current baseline from catalog:
 
-- Test files: 58
-- Unit test files: 39
+- Test files: 64
+- Unit test files: 45
 - Integration test files: 19
-- Declared test functions: 192
+- Declared test functions: 201
 
 ## High-Level Coverage Posture
 
@@ -27,24 +27,16 @@ Strong coverage already exists for:
 - Idempotency and Redis race/replay scenarios
 - Core middleware primitives (auth, RBAC, security headers/body limit, rate limiter behavior)
 - Repository CRUD/filter/sort semantics for user/role/permission/local credential/verification token/oauth/session layers
+- Redis-backed cache/guard/store semantics for admin-list, negative lookup, auth abuse, idempotency, and RBAC permission caches
 
 Most meaningful gaps are concentrated in:
 
 - Service business logic (`SessionService`, `UserService`)
-- Redis-backed cache/guard/store implementations (direct unit tests)
+- Observability utility surfaces with little/no tests
+- Security and middleware adjuncts with sparse edge-path coverage
 - CLI/tooling and startup wiring smoke paths
 
 ## P1 Gaps (Important)
-
-### 8) Redis-backed service stores are not directly tested (unit)
-
-Missing scenarios:
-
-- `admin_list_cache_redis.go`: namespace index integrity, missing meta timestamp behavior, `GetWithAge` parse-failure behavior, namespace invalidation idempotency.
-- `negative_lookup_cache_redis.go`: set/get/invalidate and stale entry behavior.
-- `auth_abuse_guard_redis.go`: cooldown growth/reset semantics, malformed redis value handling, key dimension isolation.
-- `idempotency_store_redis.go`: begin conflict/in-progress/replay transitions, TTL refresh, malformed hash payload handling.
-- `rbac_permission_cache_store_redis.go`: cache keying, invalidate-by-user and invalidate-all coverage.
 
 ### 9) Observability utility surfaces with little/no tests (unit)
 
@@ -99,16 +91,11 @@ Note:
 
 ## Recommended Implementation Sequence
 
-1. P1-8: Fill Redis-store unit tests.
-2. P1-9/10 and P2: Observability/security/tooling hardening coverage.
+1. P1-9/10: Observability and security/middleware adjunct unit tests.
+2. P2: Database/startup/tooling hardening coverage.
 
 ## Concrete New Test Files to Add
 
-- `internal/service/idempotency_store_redis_test.go`
-- `internal/service/auth_abuse_guard_redis_test.go`
-- `internal/service/admin_list_cache_redis_test.go`
-- `internal/service/negative_lookup_cache_redis_test.go`
-- `internal/service/rbac_permission_cache_store_redis_test.go`
 - `internal/security/cookie_test.go`
 - `internal/http/middleware/bypass_policy_test.go`
 - `internal/http/middleware/request_logging_middleware_test.go`
