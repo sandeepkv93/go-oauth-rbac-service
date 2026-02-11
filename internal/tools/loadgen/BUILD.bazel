@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "loadgen",
@@ -14,4 +14,10 @@ go_library(
         "//internal/tools/ui",
         "@com_github_spf13_cobra//:cobra",
     ],
+)
+
+go_test(
+    name = "loadgen_test",
+    srcs = ["run_test.go"],
+    embed = [":loadgen"],
 )

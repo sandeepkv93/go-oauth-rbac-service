@@ -57,26 +57,34 @@ func newRunCommand(opts *options) *cobra.Command {
 					Seed:        42,
 				})
 				if err != nil {
+					observability.RecordObscheckStageEvent(ctx, "traffic", "error")
 					return nil, err
 				}
+				observability.RecordObscheckStageEvent(ctx, "traffic", "success")
 				details := []string{fmt.Sprintf("traffic generated total=%d failures=%d", lgRes.TotalRequests, lgRes.Failures)}
 				recentCutoff := time.Now().Add(-2 * time.Minute)
 				time.Sleep(8 * time.Second)
 
 				traceID, err := fetchTraceIDFromExemplar(ctx, *opts, recentCutoff)
 				if err != nil {
+					observability.RecordObscheckStageEvent(ctx, "exemplar", "error")
 					return details, err
 				}
+				observability.RecordObscheckStageEvent(ctx, "exemplar", "success")
 				details = append(details, "exemplar trace_id="+traceID)
 
 				if err := verifyTempoTrace(ctx, *opts, traceID); err != nil {
+					observability.RecordObscheckStageEvent(ctx, "tempo", "error")
 					return details, err
 				}
+				observability.RecordObscheckStageEvent(ctx, "tempo", "success")
 				details = append(details, "tempo trace lookup: ok")
 
 				if err := verifyLokiTraceLogs(ctx, *opts, traceID); err != nil {
+					observability.RecordObscheckStageEvent(ctx, "loki", "error")
 					return details, err
 				}
+				observability.RecordObscheckStageEvent(ctx, "loki", "success")
 				details = append(details, "loki trace correlation: ok")
 				return details, nil
 			})

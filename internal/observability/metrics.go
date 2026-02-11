@@ -49,6 +49,8 @@ type AppMetrics struct {
 	repositoryOpsCounter         metric.Int64Counter
 	toolCommandRuns              metric.Int64Counter
 	toolCommandDuration          metric.Float64Histogram
+	loadgenRequestsCounter       metric.Int64Counter
+	obscheckStageCounter         metric.Int64Counter
 }
 
 var (
@@ -253,6 +255,14 @@ func InitMetrics(ctx context.Context, cfg *config.Config, logger *slog.Logger) (
 	if err != nil {
 		return nil, err
 	}
+	loadgenRequestsCounter, err := meter.Int64Counter("loadgen.requests")
+	if err != nil {
+		return nil, err
+	}
+	obscheckStageCounter, err := meter.Int64Counter("obscheck.stage.events")
+	if err != nil {
+		return nil, err
+	}
 
 	metricsMu.Lock()
 	appMetrics = &AppMetrics{
@@ -286,6 +296,8 @@ func InitMetrics(ctx context.Context, cfg *config.Config, logger *slog.Logger) (
 		repositoryOpsCounter:         repositoryOpsCounter,
 		toolCommandRuns:              toolCommandRuns,
 		toolCommandDuration:          toolCommandDuration,
+		loadgenRequestsCounter:       loadgenRequestsCounter,
+		obscheckStageCounter:         obscheckStageCounter,
 	}
 	metricsMu.Unlock()
 
@@ -679,6 +691,32 @@ func RecordToolCommandDuration(ctx context.Context, tool, command, outcome strin
 	m.toolCommandDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(
 		attribute.String("tool", tool),
 		attribute.String("command", command),
+		attribute.String("outcome", outcome),
+	))
+}
+
+func RecordLoadgenRequest(ctx context.Context, statusClass, profile string) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.loadgenRequestsCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("status_class", statusClass),
+		attribute.String("profile", profile),
+	))
+}
+
+func RecordObscheckStageEvent(ctx context.Context, stage, outcome string) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.obscheckStageCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("stage", stage),
 		attribute.String("outcome", outcome),
 	))
 }

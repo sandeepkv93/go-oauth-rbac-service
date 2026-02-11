@@ -8,6 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/observability"
 )
 
 type Config struct {
@@ -66,15 +68,18 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 				req, err := http.NewRequestWithContext(ctx, method, cfg.BaseURL+path, nil)
 				if err != nil {
 					atomic.AddInt64(&failures, 1)
+					observability.RecordLoadgenRequest(ctx, "error", normalizeProfile(cfg.Profile))
 					continue
 				}
 				resp, err := client.Do(req)
 				if err != nil {
 					atomic.AddInt64(&failures, 1)
+					observability.RecordLoadgenRequest(ctx, "error", normalizeProfile(cfg.Profile))
 					continue
 				}
 				_ = resp.Body.Close()
 				atomic.AddInt64(&total, 1)
+				statusClass := classifyStatusClass(resp.StatusCode)
 				switch {
 				case resp.StatusCode >= 200 && resp.StatusCode < 300:
 					atomic.AddInt64(&s2xx, 1)
@@ -83,6 +88,7 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 				case resp.StatusCode >= 500:
 					atomic.AddInt64(&s5xx, 1)
 				}
+				observability.RecordLoadgenRequest(ctx, statusClass, normalizeProfile(cfg.Profile))
 			}
 		}(i)
 	}
@@ -114,4 +120,27 @@ func endpointsForProfile(profile string) []string {
 	default:
 		return nil
 	}
+}
+
+func classifyStatusClass(statusCode int) string {
+	switch {
+	case statusCode >= 200 && statusCode < 300:
+		return "2xx"
+	case statusCode >= 300 && statusCode < 400:
+		return "3xx"
+	case statusCode >= 400 && statusCode < 500:
+		return "4xx"
+	case statusCode >= 500:
+		return "5xx"
+	default:
+		return "other"
+	}
+}
+
+func normalizeProfile(profile string) string {
+	p := strings.ToLower(strings.TrimSpace(profile))
+	if p == "" {
+		return "mixed"
+	}
+	return p
 }
