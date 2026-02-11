@@ -61,6 +61,7 @@ Non-scope:
 | `admin.list.cache.events` | Counter (int64) | 1 | `endpoint`, `outcome` | `RecordAdminListCacheEvent` calls in `internal/http/handler/admin_handler.go` |
 | `admin.list.cache.entry_age` | Histogram (float64) | `s` | `namespace` | `RecordAdminListCacheEntryAge` calls in `internal/http/handler/admin_handler.go` |
 | `admin.lookup.negative.effectiveness` | Counter (int64) | 1 | `outcome` | `RecordAdminNegativeLookupEffectiveness` calls in `internal/http/handler/admin_handler.go` |
+| `config.validation.events` | Counter (int64) | 1 | `profile`, `outcome`, `error_class` | `recordConfigValidationEvent` calls in `internal/config/config.go` |
 | `auth.rbac.authorization.events` | Counter (int64) | 1 | `required_permission`, `outcome` | `RecordRBACAuthorizationEvent` calls in `internal/http/middleware/rbac_middleware.go` |
 | `auth.rbac.permission.cache.events` | Counter (int64) | 1 | `outcome` | `RecordRBACPermissionCacheEvent` calls in `internal/service/rbac_permission_resolver.go`, `internal/http/handler/admin_handler.go` |
 | `http.idempotency.events` | Counter (int64) | 1 | `scope`, `outcome` | `RecordIdempotencyEvent` calls in `internal/http/middleware/idempotency_middleware.go` |
@@ -204,6 +205,11 @@ Non-scope:
 `admin.lookup.negative.effectiveness`
 - `outcome` values currently emitted: `prevented_db_fetch`
 
+`config.validation.events`
+- `profile` is normalized from `APP_ENV` (for example `development`, `staging`, `production`)
+- `outcome`: `success`, `error`
+- `error_class` values currently emitted: `none`, `validation`, `parse`, `load`
+
 `auth.rbac.authorization.events`
 - `outcome`: `allowed`, `denied`, `resolver_error`
 - `required_permission` values follow route middleware declarations (for example `users:read`, `roles:write`, `permissions:read`)
@@ -288,3 +294,5 @@ The exact auto-generated metric names are not hardcoded in this repository; they
 - `internal/service/token_service.go`
 - `internal/http/router/router.go`
 - `internal/di/providers.go`
+- `internal/config/config.go`
+- `internal/config/metrics.go`

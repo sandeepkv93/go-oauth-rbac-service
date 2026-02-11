@@ -2,13 +2,24 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "config",
-    srcs = ["config.go"],
+    srcs = [
+        "config.go",
+        "metrics.go",
+    ],
     importpath = "github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/config",
     visibility = ["//:__subpackages__"],
+    deps = [
+        "@io_opentelemetry_go_otel//:otel",
+        "@io_opentelemetry_go_otel//attribute",
+        "@io_opentelemetry_go_otel//metric",
+    ],
 )
 
 go_test(
     name = "config_test",
-    srcs = ["config_profile_test.go"],
+    srcs = [
+        "config_profile_test.go",
+        "metrics_test.go",
+    ],
     embed = [":config"],
 )

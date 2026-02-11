@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -127,8 +128,18 @@ type Config struct {
 	OTELLogLevel              string
 }
 
-func Load() (*Config, error) {
+func Load() (cfg *Config, err error) {
 	env := getEnv("APP_ENV", "development")
+	defer func() {
+		outcome := "success"
+		errorClass := "none"
+		if err != nil {
+			outcome = "error"
+			errorClass = classifyConfigLoadError(err)
+		}
+		recordConfigValidationEvent(context.Background(), env, outcome, errorClass)
+	}()
+
 	googleClientID := os.Getenv("GOOGLE_OAUTH_CLIENT_ID")
 	googleClientSecret := os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET")
 	googleEnabled := getEnvBool("AUTH_GOOGLE_ENABLED", true)
@@ -137,7 +148,7 @@ func Load() (*Config, error) {
 		googleEnabled = false
 	}
 
-	cfg := &Config{
+	cfg = &Config{
 		Env:                               env,
 		HTTPPort:                          getEnv("HTTP_PORT", "8080"),
 		DatabaseURL:                       os.Getenv("DATABASE_URL"),
@@ -373,7 +384,7 @@ func Load() (*Config, error) {
 	cfg.ShutdownObservabilityTimeout = obsShutdownTimeout
 
 	if err := cfg.Validate(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("validate config: %w", err)
 	}
 	return cfg, nil
 }
