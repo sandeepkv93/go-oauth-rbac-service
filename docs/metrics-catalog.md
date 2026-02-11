@@ -47,6 +47,7 @@ Non-scope:
 | `database.startup.duration` | Histogram (float64) | `s` | `phase` | `RecordDatabaseStartupDuration` calls in `internal/database/*.go` |
 | `idempotency.cleanup.runs` | Counter (int64) | 1 | `outcome` | `RecordIdempotencyCleanupRun` calls in `internal/service/idempotency_store_db.go` |
 | `idempotency.cleanup.deleted_rows` | Histogram (float64) | 1 | none | `RecordIdempotencyCleanupDeletedRows` calls in `internal/service/idempotency_store_db.go` |
+| `repository.operations` | Counter (int64) | 1 | `repo`, `op`, `outcome` | `RecordRepositoryOperation` calls in `internal/repository/*_repository.go` |
 | `admin.rbac.mutations` | Counter (int64) | 1 | `entity`, `action`, `status` | `RecordAdminRBACMutation` calls in `internal/http/handler/admin_handler.go` |
 | `admin.list.cache.events` | Counter (int64) | 1 | `endpoint`, `outcome` | `RecordAdminListCacheEvent` calls in `internal/http/handler/admin_handler.go` |
 | `auth.rbac.permission.cache.events` | Counter (int64) | 1 | `outcome` | `RecordRBACPermissionCacheEvent` calls in `internal/http/middleware/rbac_middleware.go`, `internal/service/rbac_permission_resolver.go`, `internal/http/handler/admin_handler.go` |
@@ -134,6 +135,11 @@ Non-scope:
 `idempotency.cleanup.deleted_rows`
 - no attributes
 
+`repository.operations`
+- `repo` currently emitted: `user`, `role`, `permission`, `session`
+- `outcome`: `success`, `not_found`, `error`
+- representative `op` values: `find_by_id`, `find_by_email`, `list_paged`, `create`, `update`, `delete_by_id`, `rotate_session`, `revoke_by_user_id`
+
 `admin.rbac.mutations`
 - `entity`: `user_role`, `role`, `permission`, `sync`
 - `action`: `set_user_roles`, `create`, `update`, `delete`, `sync`
@@ -210,6 +216,10 @@ The exact auto-generated metric names are not hardcoded in this repository; they
 - `internal/service/auth_abuse_guard.go`
 - `internal/service/auth_abuse_guard_redis.go`
 - `internal/service/idempotency_store_db.go`
+- `internal/repository/user_repository.go`
+- `internal/repository/role_repository.go`
+- `internal/repository/permission_repository.go`
+- `internal/repository/session_repository.go`
 - `internal/service/rbac_permission_resolver.go`
 - `internal/service/token_service.go`
 - `internal/http/router/router.go`

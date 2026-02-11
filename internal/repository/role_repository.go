@@ -1,9 +1,11 @@
 package repository
 
 import (
+	"context"
 	"errors"
 
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/domain"
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/observability"
 	"gorm.io/gorm"
 )
 
@@ -28,10 +30,13 @@ func (r *GormRoleRepository) FindByID(id uint) (*domain.Role, error) {
 	err := r.db.Preload("Permissions").First(&role, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			observability.RecordRepositoryOperation(context.Background(), "role", "find_by_id", "not_found")
 			return nil, ErrRoleNotFound
 		}
+		observability.RecordRepositoryOperation(context.Background(), "role", "find_by_id", "error")
 		return nil, err
 	}
+	observability.RecordRepositoryOperation(context.Background(), "role", "find_by_id", "success")
 	return &role, nil
 }
 
@@ -40,16 +45,24 @@ func (r *GormRoleRepository) FindByName(name string) (*domain.Role, error) {
 	err := r.db.Preload("Permissions").Where("name = ?", name).First(&role).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			observability.RecordRepositoryOperation(context.Background(), "role", "find_by_name", "not_found")
 			return nil, ErrRoleNotFound
 		}
+		observability.RecordRepositoryOperation(context.Background(), "role", "find_by_name", "error")
 		return nil, err
 	}
+	observability.RecordRepositoryOperation(context.Background(), "role", "find_by_name", "success")
 	return &role, nil
 }
 
 func (r *GormRoleRepository) List() ([]domain.Role, error) {
 	var roles []domain.Role
 	err := r.db.Preload("Permissions").Find(&roles).Error
+	if err != nil {
+		observability.RecordRepositoryOperation(context.Background(), "role", "list", "error")
+		return roles, err
+	}
+	observability.RecordRepositoryOperation(context.Background(), "role", "list", "success")
 	return roles, err
 }
 
@@ -65,6 +78,7 @@ func (r *GormRoleRepository) ListPaged(req PageRequest, sortBy, sortOrder, name 
 		base = base.Where("roles.name LIKE ?", name+"%")
 	}
 	if err := base.Count(&result.Total).Error; err != nil {
+		observability.RecordRepositoryOperation(context.Background(), "role", "list_paged", "error")
 		return PageResult[domain.Role]{}, err
 	}
 
@@ -75,28 +89,38 @@ func (r *GormRoleRepository) ListPaged(req PageRequest, sortBy, sortOrder, name 
 	query = query.Order("roles.id " + sortOrder)
 	offset := (normalized.Page - 1) * normalized.PageSize
 	if err := query.Offset(offset).Limit(normalized.PageSize).Find(&result.Items).Error; err != nil {
+		observability.RecordRepositoryOperation(context.Background(), "role", "list_paged", "error")
 		return PageResult[domain.Role]{}, err
 	}
 	result.TotalPages = calcTotalPages(result.Total, normalized.PageSize)
+	observability.RecordRepositoryOperation(context.Background(), "role", "list_paged", "success")
 	return result, nil
 }
 
 func (r *GormRoleRepository) Create(role *domain.Role, permissionIDs []uint) error {
 	if err := r.db.Create(role).Error; err != nil {
+		observability.RecordRepositoryOperation(context.Background(), "role", "create", "error")
 		return err
 	}
 	if len(permissionIDs) == 0 {
+		observability.RecordRepositoryOperation(context.Background(), "role", "create", "success")
 		return nil
 	}
 	var perms []domain.Permission
 	if err := r.db.Where("id IN ?", permissionIDs).Find(&perms).Error; err != nil {
+		observability.RecordRepositoryOperation(context.Background(), "role", "create", "error")
 		return err
 	}
-	return r.db.Model(role).Association("Permissions").Replace(perms)
+	if err := r.db.Model(role).Association("Permissions").Replace(perms); err != nil {
+		observability.RecordRepositoryOperation(context.Background(), "role", "create", "error")
+		return err
+	}
+	observability.RecordRepositoryOperation(context.Background(), "role", "create", "success")
+	return nil
 }
 
 func (r *GormRoleRepository) Update(role *domain.Role, permissionIDs []uint) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
+	err := r.db.Transaction(func(tx *gorm.DB) error {
 		var existing domain.Role
 		if err := tx.Preload("Permissions").First(&existing, role.ID).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -118,15 +142,28 @@ func (r *GormRoleRepository) Update(role *domain.Role, permissionIDs []uint) err
 		}
 		return tx.Model(&existing).Association("Permissions").Replace(perms)
 	})
+	if err != nil {
+		if errors.Is(err, ErrRoleNotFound) {
+			observability.RecordRepositoryOperation(context.Background(), "role", "update", "not_found")
+		} else {
+			observability.RecordRepositoryOperation(context.Background(), "role", "update", "error")
+		}
+		return err
+	}
+	observability.RecordRepositoryOperation(context.Background(), "role", "update", "success")
+	return nil
 }
 
 func (r *GormRoleRepository) DeleteByID(id uint) error {
 	res := r.db.Delete(&domain.Role{}, id)
 	if res.Error != nil {
+		observability.RecordRepositoryOperation(context.Background(), "role", "delete_by_id", "error")
 		return res.Error
 	}
 	if res.RowsAffected == 0 {
+		observability.RecordRepositoryOperation(context.Background(), "role", "delete_by_id", "not_found")
 		return ErrRoleNotFound
 	}
+	observability.RecordRepositoryOperation(context.Background(), "role", "delete_by_id", "success")
 	return nil
 }

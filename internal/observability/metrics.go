@@ -46,6 +46,7 @@ type AppMetrics struct {
 	databaseStartupDuration      metric.Float64Histogram
 	idempotencyCleanupCounter    metric.Int64Counter
 	idempotencyCleanupDeleted    metric.Float64Histogram
+	repositoryOpsCounter         metric.Int64Counter
 }
 
 var (
@@ -234,6 +235,10 @@ func InitMetrics(ctx context.Context, cfg *config.Config, logger *slog.Logger) (
 	if err != nil {
 		return nil, err
 	}
+	repositoryOpsCounter, err := meter.Int64Counter("repository.operations")
+	if err != nil {
+		return nil, err
+	}
 
 	metricsMu.Lock()
 	appMetrics = &AppMetrics{
@@ -264,6 +269,7 @@ func InitMetrics(ctx context.Context, cfg *config.Config, logger *slog.Logger) (
 		databaseStartupDuration:      databaseStartupDuration,
 		idempotencyCleanupCounter:    idempotencyCleanupCounter,
 		idempotencyCleanupDeleted:    idempotencyCleanupDeleted,
+		repositoryOpsCounter:         repositoryOpsCounter,
 	}
 	metricsMu.Unlock()
 
@@ -617,4 +623,18 @@ func RecordIdempotencyCleanupDeletedRows(ctx context.Context, deleted int64) {
 		return
 	}
 	m.idempotencyCleanupDeleted.Record(ctx, float64(deleted))
+}
+
+func RecordRepositoryOperation(ctx context.Context, repo, op, outcome string) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.repositoryOpsCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("repo", repo),
+		attribute.String("op", op),
+		attribute.String("outcome", outcome),
+	))
 }
