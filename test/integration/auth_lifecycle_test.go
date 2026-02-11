@@ -90,6 +90,7 @@ type authTestServerOptions struct {
 	negativeCache  service.NegativeLookupCacheStore
 	rbacPermCache  service.RBACPermissionCacheStore
 	routePolicies  router.RouteRateLimitPolicies
+	oauthProvider  service.OAuthProvider
 }
 
 func TestAuthLifecycleLoginRefreshLogoutRevoked(t *testing.T) {
@@ -311,7 +312,11 @@ func newAuthTestServerWithOptions(t *testing.T, opts authTestServerOptions) (str
 	)
 	tokenSvc := service.NewTokenService(jwtMgr, sessionRepo, "pepper-1234567890", 15*time.Minute, 24*time.Hour)
 	sessionSvc := service.NewSessionService(sessionRepo, "pepper-1234567890")
-	oauthSvc := service.NewOAuthService(oauthProviderStub{}, userRepo, oauthRepo, roleRepo)
+	oauthProvider := opts.oauthProvider
+	if oauthProvider == nil {
+		oauthProvider = oauthProviderStub{}
+	}
+	oauthSvc := service.NewOAuthService(oauthProvider, userRepo, oauthRepo, roleRepo)
 	verifyNotifier := opts.verifyNotifier
 	resetNotifier := opts.resetNotifier
 	if verifyNotifier == nil || resetNotifier == nil {
