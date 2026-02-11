@@ -12,10 +12,11 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"log/slog"
+
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/config"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/security"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/service"
-	"log/slog"
 )
 
 const oauthStateSigningKey = "0123456789abcdef0123456789abcdef"
