@@ -1,11 +1,13 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"time"
 
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/domain"
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/observability"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/repository"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/security"
 )
@@ -53,22 +55,26 @@ func (s *TokenService) Issue(user *domain.User, permissions []string, ua, ip str
 func (s *TokenService) Rotate(refreshToken string, userFetcher func(id uint) (*domain.User, []string, error), ua, ip string) (access string, newRefresh string, csrf string, userID uint, err error) {
 	claims, err := s.jwtMgr.ParseRefreshToken(refreshToken)
 	if err != nil {
+		observability.RecordRefreshSecurityEvent(context.Background(), "invalid")
 		return "", "", "", 0, ErrInvalidRefreshToken
 	}
 	hash := security.HashRefreshToken(refreshToken, s.pepper)
 	session, err := s.sessionRepo.FindByHash(hash)
 	if err != nil {
 		if errors.Is(err, repository.ErrSessionNotFound) {
+			observability.RecordRefreshSecurityEvent(context.Background(), "invalid")
 			return "", "", "", 0, ErrInvalidRefreshToken
 		}
 		return "", "", "", 0, err
 	}
 	id64, err := strconv.ParseUint(claims.Subject, 10, 64)
 	if err != nil {
+		observability.RecordRefreshSecurityEvent(context.Background(), "invalid")
 		return "", "", "", 0, ErrInvalidRefreshToken
 	}
 	userID = uint(id64)
 	if session.UserID != userID {
+		observability.RecordRefreshSecurityEvent(context.Background(), "invalid")
 		return "", "", "", 0, ErrInvalidRefreshToken
 	}
 	tokenID := getString(session.TokenID)
@@ -81,15 +87,18 @@ func (s *TokenService) Rotate(refreshToken string, userFetcher func(id uint) (*d
 		if err := s.sessionRepo.UpdateTokenLineageByHash(hash, claims.ID, fallbackFamilyID); err != nil {
 			return "", "", "", 0, err
 		}
+		observability.RecordRefreshSecurityEvent(context.Background(), "lineage_backfilled")
 		session.TokenID = ptr(claims.ID)
 		session.FamilyID = ptr(fallbackFamilyID)
 		tokenID = claims.ID
 		familyID = fallbackFamilyID
 	}
 	if tokenID != "" && claims.ID != "" && tokenID != claims.ID {
+		observability.RecordRefreshSecurityEvent(context.Background(), "invalid")
 		return "", "", "", 0, ErrInvalidRefreshToken
 	}
 	if session.ExpiresAt.Before(time.Now()) {
+		observability.RecordRefreshSecurityEvent(context.Background(), "invalid")
 		return "", "", "", 0, ErrInvalidRefreshToken
 	}
 	if session.RevokedAt != nil {
@@ -99,8 +108,10 @@ func (s *TokenService) Rotate(refreshToken string, userFetcher func(id uint) (*d
 			if familyID != "" {
 				_, _ = s.sessionRepo.RevokeByFamilyID(familyID, "reuse_detected")
 			}
+			observability.RecordRefreshSecurityEvent(context.Background(), "reuse_detected")
 			return "", "", "", 0, ErrRefreshTokenReuseDetected
 		}
+		observability.RecordRefreshSecurityEvent(context.Background(), "invalid")
 		return "", "", "", 0, ErrInvalidRefreshToken
 	}
 	user, perms, err := userFetcher(userID)
@@ -124,10 +135,12 @@ func (s *TokenService) Rotate(refreshToken string, userFetcher func(id uint) (*d
 	})
 	if err != nil {
 		if errors.Is(err, repository.ErrSessionNotFound) {
+			observability.RecordRefreshSecurityEvent(context.Background(), "invalid")
 			return "", "", "", 0, ErrInvalidRefreshToken
 		}
 		return "", "", "", 0, err
 	}
+	observability.RecordRefreshSecurityEvent(context.Background(), "rotated")
 	return access, newRefresh, csrf, userID, nil
 }
 

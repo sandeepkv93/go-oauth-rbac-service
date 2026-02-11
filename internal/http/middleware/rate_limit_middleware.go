@@ -6,10 +6,12 @@ import (
 	"log/slog"
 	"math"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/http/response"
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/observability"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/security"
 )
 
@@ -18,6 +20,7 @@ type Decision struct {
 	RetryAfter time.Duration
 	Remaining  int
 	ResetAt    time.Time
+	Reason     string
 }
 
 type RateLimitPolicy struct {
@@ -143,8 +146,10 @@ func NewDistributedRateLimiterWithKeyAndPolicy(
 func (rl *RateLimiter) Middleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			keyType := "ip"
 			if rl.bypassEvaluator != nil {
 				if bypass, reason := rl.bypassEvaluator(r); bypass {
+					observability.RecordRateLimitDecision(r.Context(), rl.scope, "bypass", string(rl.mode), keyType)
 					slog.Debug("rate limiter bypass applied", "scope", rl.scope, "reason", reason, "path", r.URL.Path)
 					next.ServeHTTP(w, r)
 					return
@@ -154,8 +159,10 @@ func (rl *RateLimiter) Middleware() func(http.Handler) http.Handler {
 			if key == "" {
 				key = clientIPKey(r)
 			}
+			keyType = rateLimitKeyType(key)
 			decision, err := rl.limiter.Allow(r.Context(), key, rl.policy)
 			if err != nil {
+				observability.RecordRateLimitDecision(r.Context(), rl.scope, "backend_error", string(rl.mode), keyType)
 				if rl.mode == FailOpen {
 					slog.Warn("rate limiter backend unavailable, allowing request",
 						"scope", rl.scope,
@@ -167,15 +174,23 @@ func (rl *RateLimiter) Middleware() func(http.Handler) http.Handler {
 				}
 				writeRateLimitHeaders(w.Header(), rl.policy.SustainedLimit, 0, time.Now().Add(rl.policy.SustainedWindow))
 				w.Header().Set("Retry-After", retryAfterHeader(rl.policy.SustainedWindow))
+				observability.RecordRateLimitRetryAfter(r.Context(), rl.scope, "backend", rl.policy.SustainedWindow)
 				response.Error(w, r, http.StatusTooManyRequests, "RATE_LIMITED", "too many requests", nil)
 				return
 			}
 			writeRateLimitHeaders(w.Header(), rl.policy.SustainedLimit, decision.Remaining, decision.ResetAt)
 			if !decision.Allowed {
+				observability.RecordRateLimitDecision(r.Context(), rl.scope, "deny", string(rl.mode), keyType)
 				w.Header().Set("Retry-After", retryAfterHeader(decision.RetryAfter))
+				reason := decision.Reason
+				if reason == "" {
+					reason = "window"
+				}
+				observability.RecordRateLimitRetryAfter(r.Context(), rl.scope, reason, decision.RetryAfter)
 				response.Error(w, r, http.StatusTooManyRequests, "RATE_LIMITED", "too many requests", nil)
 				return
 			}
+			observability.RecordRateLimitDecision(r.Context(), rl.scope, "allow", string(rl.mode), keyType)
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -241,15 +256,20 @@ func (rl *localFixedWindowLimiter) Allow(_ context.Context, key string, policy R
 
 	sustainedRemaining := policy.SustainedLimit - len(state.hits)
 	bucketRetry := time.Duration(0)
+	reason := ""
 	if state.tokens < 1 {
 		need := 1 - state.tokens
 		bucketRetry = time.Duration(math.Ceil((need / policy.BurstRefillPerSec) * float64(time.Second)))
+		reason = "bucket"
 	}
 	sustainedRetry := time.Duration(0)
 	if sustainedRemaining <= 0 {
 		sustainedRetry = state.hits[0].Add(policy.SustainedWindow).Sub(now)
 		if sustainedRetry < 0 {
 			sustainedRetry = 0
+		}
+		if sustainedRetry >= bucketRetry {
+			reason = "window"
 		}
 	}
 
@@ -286,6 +306,7 @@ func (rl *localFixedWindowLimiter) Allow(_ context.Context, key string, policy R
 		RetryAfter: retryAfter,
 		Remaining:  remaining,
 		ResetAt:    resetAt,
+		Reason:     reason,
 	}, nil
 }
 
@@ -363,4 +384,11 @@ func normalizePolicy(policy RateLimitPolicy) RateLimitPolicy {
 		policy.BurstRefillPerSec = 1
 	}
 	return policy
+}
+
+func rateLimitKeyType(key string) string {
+	if strings.HasPrefix(key, "sub:") {
+		return "subject"
+	}
+	return "ip"
 }

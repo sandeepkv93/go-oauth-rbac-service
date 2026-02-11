@@ -257,6 +257,7 @@ func (h *AuthHandler) LocalLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	bypassAuthAbuse, bypassReason := h.shouldBypassAuthAbuse(r)
 	if bypassAuthAbuse {
+		observability.RecordAuthAbuseGuardEvent(r.Context(), string(service.AuthAbuseScopeLogin), "check", "bypass")
 		auditAuth(r, "auth.local.login", "login", "accepted", "abuse_bypass_"+bypassReason, "anonymous", "user", "unknown")
 	} else {
 		retryAfter, err := h.abuseGuard.Check(r.Context(), service.AuthAbuseScopeLogin, req.Email, clientIP(r))
@@ -388,6 +389,7 @@ func (h *AuthHandler) LocalPasswordForgot(w http.ResponseWriter, r *http.Request
 	}
 	bypassAuthAbuse, bypassReason := h.shouldBypassAuthAbuse(r)
 	if bypassAuthAbuse {
+		observability.RecordAuthAbuseGuardEvent(r.Context(), string(service.AuthAbuseScopeForgot), "check", "bypass")
 		auditAuth(r, "auth.local.password.forgot", "password_forgot", "accepted", "abuse_bypass_"+bypassReason, "anonymous", "user", "unknown")
 	} else {
 		retryAfter, err := h.abuseGuard.Check(r.Context(), service.AuthAbuseScopeForgot, req.Email, clientIP(r))

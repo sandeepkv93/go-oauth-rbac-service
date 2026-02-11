@@ -339,3 +339,12 @@ func TestRateLimiterBypassSkipsLimiter(t *testing.T) {
 		t.Fatalf("did not expect Retry-After on bypass, got %q", got)
 	}
 }
+
+func TestRateLimitKeyType(t *testing.T) {
+	if got := rateLimitKeyType("sub:42"); got != "subject" {
+		t.Fatalf("expected subject key type, got %q", got)
+	}
+	if got := rateLimitKeyType("10.0.0.1"); got != "ip" {
+		t.Fatalf("expected ip key type, got %q", got)
+	}
+}

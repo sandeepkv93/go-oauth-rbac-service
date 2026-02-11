@@ -2,11 +2,13 @@ package middleware
 
 import (
 	"net/http"
+	"path"
 	"strings"
 
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/http/response"
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/observability"
 )
 
 func RequestID(next http.Handler) http.Handler { return chimiddleware.RequestID(next) }
@@ -67,10 +69,30 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		cookie, err := r.Cookie("csrf_token")
-		if err != nil || cookie.Value == "" || r.Header.Get("X-CSRF-Token") != cookie.Value {
+		pathGroup := csrfPathGroup(r.URL.Path)
+		if err != nil || cookie.Value == "" {
+			observability.RecordCSRFValidation(r.Context(), "missing_cookie", pathGroup)
 			response.Error(w, r, http.StatusForbidden, "FORBIDDEN", "invalid csrf token", nil)
 			return
 		}
+		if r.Header.Get("X-CSRF-Token") != cookie.Value {
+			observability.RecordCSRFValidation(r.Context(), "mismatch", pathGroup)
+			response.Error(w, r, http.StatusForbidden, "FORBIDDEN", "invalid csrf token", nil)
+			return
+		}
+		observability.RecordCSRFValidation(r.Context(), "valid", pathGroup)
 		next.ServeHTTP(w, r)
 	})
+}
+
+func csrfPathGroup(rawPath string) string {
+	p := strings.Trim(path.Clean(rawPath), "/")
+	if p == "." || p == "" {
+		return "root"
+	}
+	parts := strings.Split(p, "/")
+	if len(parts) >= 3 && parts[0] == "api" {
+		return parts[0] + "/" + parts[2]
+	}
+	return parts[0]
 }

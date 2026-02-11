@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/observability"
 )
 
 var redisAuthAbuseBumpScript = redis.NewScript(`
@@ -65,26 +66,42 @@ func (g *RedisAuthAbuseGuard) Check(ctx context.Context, scope AuthAbuseScope, i
 	now := time.Now().UTC()
 	identityDelay, err := g.cooldownForKey(ctx, g.stateKey(scope, "id", normalizeAuthIdentity(identity)), now)
 	if err != nil {
+		observability.RecordAuthAbuseGuardEvent(ctx, string(scope), "check", "error")
 		return 0, err
 	}
 	ipDelay, err := g.cooldownForKey(ctx, g.stateKey(scope, "ip", normalizeAuthIP(ip)), now)
 	if err != nil {
+		observability.RecordAuthAbuseGuardEvent(ctx, string(scope), "check", "error")
 		return 0, err
 	}
-	return max(identityDelay, ipDelay), nil
+	cooldown := max(identityDelay, ipDelay)
+	outcome := "ok"
+	if cooldown > 0 {
+		outcome = "cooldown"
+		observability.RecordAuthAbuseCooldown(ctx, string(scope), "check", cooldown)
+	}
+	observability.RecordAuthAbuseGuardEvent(ctx, string(scope), "check", outcome)
+	return cooldown, nil
 }
 
 func (g *RedisAuthAbuseGuard) RegisterFailure(ctx context.Context, scope AuthAbuseScope, identity, ip string) (time.Duration, error) {
 	nowMS := time.Now().UTC().UnixMilli()
 	identityDelay, err := g.bumpKey(ctx, g.stateKey(scope, "id", normalizeAuthIdentity(identity)), nowMS)
 	if err != nil {
+		observability.RecordAuthAbuseGuardEvent(ctx, string(scope), "register_failure", "error")
 		return 0, err
 	}
 	ipDelay, err := g.bumpKey(ctx, g.stateKey(scope, "ip", normalizeAuthIP(ip)), nowMS)
 	if err != nil {
+		observability.RecordAuthAbuseGuardEvent(ctx, string(scope), "register_failure", "error")
 		return 0, err
 	}
-	return max(identityDelay, ipDelay), nil
+	cooldown := max(identityDelay, ipDelay)
+	observability.RecordAuthAbuseGuardEvent(ctx, string(scope), "register_failure", "ok")
+	if cooldown > 0 {
+		observability.RecordAuthAbuseCooldown(ctx, string(scope), "register_failure", cooldown)
+	}
+	return cooldown, nil
 }
 
 func (g *RedisAuthAbuseGuard) Reset(ctx context.Context, scope AuthAbuseScope, identity, ip string) error {
@@ -93,6 +110,11 @@ func (g *RedisAuthAbuseGuard) Reset(ctx context.Context, scope AuthAbuseScope, i
 		g.stateKey(scope, "id", normalizeAuthIdentity(identity)),
 		g.stateKey(scope, "ip", normalizeAuthIP(ip)),
 	).Result()
+	if err != nil {
+		observability.RecordAuthAbuseGuardEvent(ctx, string(scope), "reset", "error")
+		return err
+	}
+	observability.RecordAuthAbuseGuardEvent(ctx, string(scope), "reset", "ok")
 	return err
 }
 

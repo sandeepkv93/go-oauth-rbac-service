@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/observability"
 )
 
 type AuthAbuseScope string
@@ -36,15 +38,18 @@ func NewNoopAuthAbuseGuard() *NoopAuthAbuseGuard {
 	return &NoopAuthAbuseGuard{}
 }
 
-func (g *NoopAuthAbuseGuard) Check(context.Context, AuthAbuseScope, string, string) (time.Duration, error) {
+func (g *NoopAuthAbuseGuard) Check(ctx context.Context, scope AuthAbuseScope, _ string, _ string) (time.Duration, error) {
+	observability.RecordAuthAbuseGuardEvent(ctx, string(scope), "check", "bypass")
 	return 0, nil
 }
 
-func (g *NoopAuthAbuseGuard) RegisterFailure(context.Context, AuthAbuseScope, string, string) (time.Duration, error) {
+func (g *NoopAuthAbuseGuard) RegisterFailure(ctx context.Context, scope AuthAbuseScope, _ string, _ string) (time.Duration, error) {
+	observability.RecordAuthAbuseGuardEvent(ctx, string(scope), "register_failure", "bypass")
 	return 0, nil
 }
 
-func (g *NoopAuthAbuseGuard) Reset(context.Context, AuthAbuseScope, string, string) error {
+func (g *NoopAuthAbuseGuard) Reset(ctx context.Context, scope AuthAbuseScope, _ string, _ string) error {
+	observability.RecordAuthAbuseGuardEvent(ctx, string(scope), "reset", "bypass")
 	return nil
 }
 
@@ -67,30 +72,43 @@ func NewInMemoryAuthAbuseGuard(policy AuthAbusePolicy) *InMemoryAuthAbuseGuard {
 	}
 }
 
-func (g *InMemoryAuthAbuseGuard) Check(_ context.Context, scope AuthAbuseScope, identity, ip string) (time.Duration, error) {
+func (g *InMemoryAuthAbuseGuard) Check(ctx context.Context, scope AuthAbuseScope, identity, ip string) (time.Duration, error) {
 	now := time.Now().UTC()
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	return g.maxActiveCooldownLocked(now, scope, identity, ip), nil
+	cooldown := g.maxActiveCooldownLocked(now, scope, identity, ip)
+	outcome := "ok"
+	if cooldown > 0 {
+		outcome = "cooldown"
+		observability.RecordAuthAbuseCooldown(ctx, string(scope), "check", cooldown)
+	}
+	observability.RecordAuthAbuseGuardEvent(ctx, string(scope), "check", outcome)
+	return cooldown, nil
 }
 
-func (g *InMemoryAuthAbuseGuard) RegisterFailure(_ context.Context, scope AuthAbuseScope, identity, ip string) (time.Duration, error) {
+func (g *InMemoryAuthAbuseGuard) RegisterFailure(ctx context.Context, scope AuthAbuseScope, identity, ip string) (time.Duration, error) {
 	now := time.Now().UTC()
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	identityDelay := g.bumpLocked(now, g.stateKey(scope, "id", normalizeAuthIdentity(identity)))
 	ipDelay := g.bumpLocked(now, g.stateKey(scope, "ip", normalizeAuthIP(ip)))
-	return max(identityDelay, ipDelay), nil
+	cooldown := max(identityDelay, ipDelay)
+	observability.RecordAuthAbuseGuardEvent(ctx, string(scope), "register_failure", "ok")
+	if cooldown > 0 {
+		observability.RecordAuthAbuseCooldown(ctx, string(scope), "register_failure", cooldown)
+	}
+	return cooldown, nil
 }
 
-func (g *InMemoryAuthAbuseGuard) Reset(_ context.Context, scope AuthAbuseScope, identity, ip string) error {
+func (g *InMemoryAuthAbuseGuard) Reset(ctx context.Context, scope AuthAbuseScope, identity, ip string) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	delete(g.data, g.stateKey(scope, "id", normalizeAuthIdentity(identity)))
 	delete(g.data, g.stateKey(scope, "ip", normalizeAuthIP(ip)))
+	observability.RecordAuthAbuseGuardEvent(ctx, string(scope), "reset", "ok")
 	return nil
 }
 

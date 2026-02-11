@@ -19,14 +19,21 @@ import (
 )
 
 type AppMetrics struct {
-	authLoginCounter   metric.Int64Counter
-	authRefreshCounter metric.Int64Counter
-	authLogoutCounter  metric.Int64Counter
-	adminRBACCounter   metric.Int64Counter
-	adminListCacheHits metric.Int64Counter
-	rbacCacheCounter   metric.Int64Counter
-	idempotencyCounter metric.Int64Counter
-	authReqDuration    metric.Float64Histogram
+	authLoginCounter             metric.Int64Counter
+	authRefreshCounter           metric.Int64Counter
+	authLogoutCounter            metric.Int64Counter
+	adminRBACCounter             metric.Int64Counter
+	adminListCacheHits           metric.Int64Counter
+	rbacCacheCounter             metric.Int64Counter
+	idempotencyCounter           metric.Int64Counter
+	authReqDuration              metric.Float64Histogram
+	accessTokenValidationCounter metric.Int64Counter
+	csrfValidationCounter        metric.Int64Counter
+	rateLimitDecisionCounter     metric.Int64Counter
+	rateLimitRetryAfter          metric.Float64Histogram
+	abuseGuardCounter            metric.Int64Counter
+	abuseGuardCooldown           metric.Float64Histogram
+	refreshSecurityCounter       metric.Int64Counter
 }
 
 var (
@@ -110,17 +117,60 @@ func InitMetrics(ctx context.Context, cfg *config.Config, logger *slog.Logger) (
 	if err != nil {
 		return nil, err
 	}
+	accessTokenValidationCounter, err := meter.Int64Counter("auth.access_token.validation.events")
+	if err != nil {
+		return nil, err
+	}
+	csrfValidationCounter, err := meter.Int64Counter("security.csrf.validation.events")
+	if err != nil {
+		return nil, err
+	}
+	rateLimitDecisionCounter, err := meter.Int64Counter("http.rate_limit.decisions")
+	if err != nil {
+		return nil, err
+	}
+	rateLimitRetryAfter, err := meter.Float64Histogram(
+		"http.rate_limit.retry_after",
+		metric.WithUnit("s"),
+		metric.WithDescription("Retry-after duration in seconds for throttled requests"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	abuseGuardCounter, err := meter.Int64Counter("auth.abuse_guard.events")
+	if err != nil {
+		return nil, err
+	}
+	abuseGuardCooldown, err := meter.Float64Histogram(
+		"auth.abuse_guard.cooldown",
+		metric.WithUnit("s"),
+		metric.WithDescription("Cooldown duration returned by auth abuse guard"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	refreshSecurityCounter, err := meter.Int64Counter("auth.refresh.security.events")
+	if err != nil {
+		return nil, err
+	}
 
 	metricsMu.Lock()
 	appMetrics = &AppMetrics{
-		authLoginCounter:   loginCounter,
-		authRefreshCounter: refreshCounter,
-		authLogoutCounter:  logoutCounter,
-		adminRBACCounter:   adminRBACCounter,
-		adminListCacheHits: adminListCacheEvents,
-		rbacCacheCounter:   rbacPermissionCacheEvents,
-		idempotencyCounter: idempotencyCounter,
-		authReqDuration:    authReqDuration,
+		authLoginCounter:             loginCounter,
+		authRefreshCounter:           refreshCounter,
+		authLogoutCounter:            logoutCounter,
+		adminRBACCounter:             adminRBACCounter,
+		adminListCacheHits:           adminListCacheEvents,
+		rbacCacheCounter:             rbacPermissionCacheEvents,
+		idempotencyCounter:           idempotencyCounter,
+		authReqDuration:              authReqDuration,
+		accessTokenValidationCounter: accessTokenValidationCounter,
+		csrfValidationCounter:        csrfValidationCounter,
+		rateLimitDecisionCounter:     rateLimitDecisionCounter,
+		rateLimitRetryAfter:          rateLimitRetryAfter,
+		abuseGuardCounter:            abuseGuardCounter,
+		abuseGuardCooldown:           abuseGuardCooldown,
+		refreshSecurityCounter:       refreshSecurityCounter,
 	}
 	metricsMu.Unlock()
 
@@ -234,4 +284,97 @@ func RecordAuthRequestDuration(ctx context.Context, endpoint, status string, dur
 			attribute.String("status", status),
 		),
 	)
+}
+
+func RecordAccessTokenValidation(ctx context.Context, outcome, source string) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.accessTokenValidationCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("outcome", outcome),
+		attribute.String("source", source),
+	))
+}
+
+func RecordCSRFValidation(ctx context.Context, outcome, pathGroup string) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.csrfValidationCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("outcome", outcome),
+		attribute.String("path_group", pathGroup),
+	))
+}
+
+func RecordRateLimitDecision(ctx context.Context, scope, outcome, mode, keyType string) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.rateLimitDecisionCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("scope", scope),
+		attribute.String("outcome", outcome),
+		attribute.String("mode", mode),
+		attribute.String("key_type", keyType),
+	))
+}
+
+func RecordRateLimitRetryAfter(ctx context.Context, scope, reason string, retryAfter time.Duration) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.rateLimitRetryAfter.Record(ctx, retryAfter.Seconds(), metric.WithAttributes(
+		attribute.String("scope", scope),
+		attribute.String("reason", reason),
+	))
+}
+
+func RecordAuthAbuseGuardEvent(ctx context.Context, scope, action, outcome string) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.abuseGuardCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("scope", scope),
+		attribute.String("action", action),
+		attribute.String("outcome", outcome),
+	))
+}
+
+func RecordAuthAbuseCooldown(ctx context.Context, scope, action string, cooldown time.Duration) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.abuseGuardCooldown.Record(ctx, cooldown.Seconds(), metric.WithAttributes(
+		attribute.String("scope", scope),
+		attribute.String("action", action),
+	))
+}
+
+func RecordRefreshSecurityEvent(ctx context.Context, outcome string) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.refreshSecurityCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("outcome", outcome),
+	))
 }
