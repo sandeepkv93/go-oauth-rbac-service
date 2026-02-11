@@ -228,8 +228,9 @@ func (s *stubPermRepo) FindByPairs(pairs [][2]string) ([]domain.Permission, erro
 		return s.findPairs(pairs)
 	}
 	out := make([]domain.Permission, 0, len(pairs))
-	for i, pair := range pairs {
-		out = append(out, domain.Permission{ID: uint(i + 1), Resource: pair[0], Action: pair[1]})
+	for _, pair := range pairs {
+		nextID := uint(len(out) + 1)
+		out = append(out, domain.Permission{ID: nextID, Resource: pair[0], Action: pair[1]})
 	}
 	return out, nil
 }
