@@ -3,12 +3,16 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/config"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/domain"
+	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/observability"
 	"github.com/sandeepkv93/secure-observable-go-backend-starter-kit/internal/repository"
 
 	"golang.org/x/oauth2"
@@ -101,16 +105,23 @@ func (s *OAuthService) HandleGoogleCallback(ctx context.Context, code string) (*
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	exchangeStart := time.Now()
 	token, err := s.provider.Exchange(ctx, code)
+	observability.RecordGoogleOAuthRequestDuration(ctx, "exchange", oauthStatus(err), time.Since(exchangeStart))
 	if err != nil {
+		observability.RecordGoogleOAuthError(ctx, classifyOAuthError(err))
 		return nil, err
 	}
+	userInfoStart := time.Now()
 	info, err := s.provider.FetchUserInfo(ctx, token)
+	observability.RecordGoogleOAuthRequestDuration(ctx, "userinfo", oauthStatus(err), time.Since(userInfoStart))
 	if err != nil {
+		observability.RecordGoogleOAuthError(ctx, classifyOAuthError(err))
 		return nil, err
 	}
 
 	if !info.EmailVerified {
+		observability.RecordGoogleOAuthError(ctx, "email_not_verified")
 		return nil, fmt.Errorf("google email not verified")
 	}
 
@@ -152,4 +163,40 @@ func (s *OAuthService) HandleGoogleCallback(ctx context.Context, code string) (*
 		return nil, err
 	}
 	return s.userRepo.FindByID(user.ID)
+}
+
+func oauthStatus(err error) string {
+	if err != nil {
+		return "error"
+	}
+	return "success"
+}
+
+func classifyOAuthError(err error) string {
+	if err == nil {
+		return "none"
+	}
+	if errors.Is(err, context.Canceled) {
+		return "context_canceled"
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "timeout"
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return "timeout"
+	}
+
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "userinfo status:"):
+		return "userinfo_status"
+	case strings.Contains(msg, "missing required userinfo fields"):
+		return "invalid_userinfo"
+	case strings.Contains(msg, "oauth2"):
+		return "oauth2_exchange"
+	default:
+		return "other"
+	}
 }

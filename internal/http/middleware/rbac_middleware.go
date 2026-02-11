@@ -20,17 +20,18 @@ func RequirePermission(rbac service.RBACAuthorizer, resolver service.PermissionR
 			if resolver != nil {
 				resolved, err := resolver.ResolvePermissions(r.Context(), claims)
 				if err != nil {
-					observability.RecordRBACPermissionCacheEvent(r.Context(), "resolve_error")
+					observability.RecordRBACAuthorizationEvent(r.Context(), permission, "resolver_error")
 					response.Error(w, r, http.StatusServiceUnavailable, "RBAC_UNAVAILABLE", "permission resolution unavailable", nil)
 					return
 				}
 				perms = resolved
 			}
 			if !rbac.HasPermission(perms, permission) {
+				observability.RecordRBACAuthorizationEvent(r.Context(), permission, "denied")
 				response.Error(w, r, http.StatusForbidden, "FORBIDDEN", "insufficient permission", map[string]string{"required": permission})
 				return
 			}
-			observability.RecordRBACPermissionCacheEvent(r.Context(), "allowed")
+			observability.RecordRBACAuthorizationEvent(r.Context(), permission, "allowed")
 			next.ServeHTTP(w, r)
 		})
 	}

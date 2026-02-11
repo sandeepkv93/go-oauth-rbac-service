@@ -51,6 +51,10 @@ type AppMetrics struct {
 	toolCommandDuration          metric.Float64Histogram
 	loadgenRequestsCounter       metric.Int64Counter
 	obscheckStageCounter         metric.Int64Counter
+	oauthGoogleReqDuration       metric.Float64Histogram
+	oauthGoogleErrorsCounter     metric.Int64Counter
+	rbacAuthorizationCounter     metric.Int64Counter
+	securityBypassCounter        metric.Int64Counter
 }
 
 var (
@@ -263,6 +267,26 @@ func InitMetrics(ctx context.Context, cfg *config.Config, logger *slog.Logger) (
 	if err != nil {
 		return nil, err
 	}
+	oauthGoogleReqDuration, err := meter.Float64Histogram(
+		"auth.oauth.google.request.duration",
+		metric.WithUnit("s"),
+		metric.WithDescription("Duration of Google OAuth provider operations in seconds"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	oauthGoogleErrorsCounter, err := meter.Int64Counter("auth.oauth.google.errors")
+	if err != nil {
+		return nil, err
+	}
+	rbacAuthorizationCounter, err := meter.Int64Counter("auth.rbac.authorization.events")
+	if err != nil {
+		return nil, err
+	}
+	securityBypassCounter, err := meter.Int64Counter("security.bypass.events")
+	if err != nil {
+		return nil, err
+	}
 
 	metricsMu.Lock()
 	appMetrics = &AppMetrics{
@@ -298,6 +322,10 @@ func InitMetrics(ctx context.Context, cfg *config.Config, logger *slog.Logger) (
 		toolCommandDuration:          toolCommandDuration,
 		loadgenRequestsCounter:       loadgenRequestsCounter,
 		obscheckStageCounter:         obscheckStageCounter,
+		oauthGoogleReqDuration:       oauthGoogleReqDuration,
+		oauthGoogleErrorsCounter:     oauthGoogleErrorsCounter,
+		rbacAuthorizationCounter:     rbacAuthorizationCounter,
+		securityBypassCounter:        securityBypassCounter,
 	}
 	metricsMu.Unlock()
 
@@ -718,5 +746,56 @@ func RecordObscheckStageEvent(ctx context.Context, stage, outcome string) {
 	m.obscheckStageCounter.Add(ctx, 1, metric.WithAttributes(
 		attribute.String("stage", stage),
 		attribute.String("outcome", outcome),
+	))
+}
+
+func RecordGoogleOAuthRequestDuration(ctx context.Context, operation, status string, duration time.Duration) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.oauthGoogleReqDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(
+		attribute.String("operation", operation),
+		attribute.String("status", status),
+	))
+}
+
+func RecordGoogleOAuthError(ctx context.Context, errorClass string) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.oauthGoogleErrorsCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("error_class", errorClass),
+	))
+}
+
+func RecordRBACAuthorizationEvent(ctx context.Context, requiredPermission, outcome string) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.rbacAuthorizationCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("required_permission", requiredPermission),
+		attribute.String("outcome", outcome),
+	))
+}
+
+func RecordSecurityBypassEvent(ctx context.Context, reason, scope string) {
+	metricsMu.RLock()
+	m := appMetrics
+	metricsMu.RUnlock()
+	if m == nil {
+		return
+	}
+	m.securityBypassCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("reason", reason),
+		attribute.String("scope", scope),
 	))
 }

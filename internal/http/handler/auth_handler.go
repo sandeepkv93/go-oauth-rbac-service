@@ -257,6 +257,7 @@ func (h *AuthHandler) LocalLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	bypassAuthAbuse, bypassReason := h.shouldBypassAuthAbuse(r)
 	if bypassAuthAbuse {
+		observability.RecordSecurityBypassEvent(r.Context(), normalizeBypassReason(bypassReason), "auth.login")
 		observability.RecordAuthAbuseGuardEvent(r.Context(), string(service.AuthAbuseScopeLogin), "check", "bypass")
 		auditAuth(r, "auth.local.login", "login", "accepted", "abuse_bypass_"+bypassReason, "anonymous", "user", "unknown")
 	} else {
@@ -403,6 +404,7 @@ func (h *AuthHandler) LocalPasswordForgot(w http.ResponseWriter, r *http.Request
 	}
 	bypassAuthAbuse, bypassReason := h.shouldBypassAuthAbuse(r)
 	if bypassAuthAbuse {
+		observability.RecordSecurityBypassEvent(r.Context(), normalizeBypassReason(bypassReason), "auth.password_forgot")
 		observability.RecordAuthAbuseGuardEvent(r.Context(), string(service.AuthAbuseScopeForgot), "check", "bypass")
 		auditAuth(r, "auth.local.password.forgot", "password_forgot", "accepted", "abuse_bypass_"+bypassReason, "anonymous", "user", "unknown")
 	} else {
@@ -564,6 +566,14 @@ func clientIP(r *http.Request) string {
 		return strings.TrimSpace(parts[0])
 	}
 	return r.RemoteAddr
+}
+
+func normalizeBypassReason(reason string) string {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return "unspecified"
+	}
+	return reason
 }
 
 func writeAbuseCooldownHeaders(w http.ResponseWriter, retryAfter time.Duration) {

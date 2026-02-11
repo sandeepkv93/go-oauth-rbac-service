@@ -49,6 +49,7 @@ go_test(
         "auth_password_policy_test.go",
         "idempotency_store_db_test.go",
         "negative_lookup_cache_test.go",
+        "oauth_service_test.go",
         "rbac_permission_resolver_test.go",
         "rbac_service_test.go",
         "token_service_test.go",

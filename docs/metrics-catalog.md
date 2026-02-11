@@ -39,6 +39,8 @@ Non-scope:
 | `session.revoked.count` | Histogram (float64) | 1 | `action` | `RecordSessionRevokedCount` calls in `internal/http/handler/user_handler.go` |
 | `user.profile.events` | Counter (int64) | 1 | `outcome` | `RecordUserProfileEvent` calls in `internal/http/handler/user_handler.go` |
 | `auth.local.flow.events` | Counter (int64) | 1 | `flow`, `outcome` | `RecordAuthLocalFlowEvent` calls in `internal/http/handler/auth_handler.go` |
+| `auth.oauth.google.request.duration` | Histogram (float64) | `s` | `operation`, `status` | `RecordGoogleOAuthRequestDuration` calls in `internal/service/oauth_service.go` |
+| `auth.oauth.google.errors` | Counter (int64) | 1 | `error_class` | `RecordGoogleOAuthError` calls in `internal/service/oauth_service.go` |
 | `admin.list.request.duration` | Histogram (float64) | `s` | `endpoint`, `status` | `RecordAdminListRequestDuration` calls in `internal/http/handler/admin_handler.go` |
 | `admin.list.page_size` | Histogram (float64) | 1 | `endpoint` | `RecordAdminListPageSize` calls in `internal/http/handler/admin_handler.go` |
 | `health.check.results` | Counter (int64) | 1 | `check`, `outcome` | `RecordHealthCheckResult` calls in `internal/health/checker.go` |
@@ -52,9 +54,11 @@ Non-scope:
 | `tool.command.duration` | Histogram (float64) | `s` | `tool`, `command`, `outcome` | `RecordToolCommandDuration` calls in `internal/tools/*/command.go` |
 | `loadgen.requests` | Counter (int64) | 1 | `status_class`, `profile` | `RecordLoadgenRequest` calls in `internal/tools/loadgen/run.go` |
 | `obscheck.stage.events` | Counter (int64) | 1 | `stage`, `outcome` | `RecordObscheckStageEvent` calls in `internal/tools/obscheck/command.go` |
+| `security.bypass.events` | Counter (int64) | 1 | `reason`, `scope` | `RecordSecurityBypassEvent` calls in `internal/http/middleware/rate_limit_middleware.go`, `internal/http/handler/auth_handler.go` |
 | `admin.rbac.mutations` | Counter (int64) | 1 | `entity`, `action`, `status` | `RecordAdminRBACMutation` calls in `internal/http/handler/admin_handler.go` |
 | `admin.list.cache.events` | Counter (int64) | 1 | `endpoint`, `outcome` | `RecordAdminListCacheEvent` calls in `internal/http/handler/admin_handler.go` |
-| `auth.rbac.permission.cache.events` | Counter (int64) | 1 | `outcome` | `RecordRBACPermissionCacheEvent` calls in `internal/http/middleware/rbac_middleware.go`, `internal/service/rbac_permission_resolver.go`, `internal/http/handler/admin_handler.go` |
+| `auth.rbac.authorization.events` | Counter (int64) | 1 | `required_permission`, `outcome` | `RecordRBACAuthorizationEvent` calls in `internal/http/middleware/rbac_middleware.go` |
+| `auth.rbac.permission.cache.events` | Counter (int64) | 1 | `outcome` | `RecordRBACPermissionCacheEvent` calls in `internal/service/rbac_permission_resolver.go`, `internal/http/handler/admin_handler.go` |
 | `http.idempotency.events` | Counter (int64) | 1 | `scope`, `outcome` | `RecordIdempotencyEvent` calls in `internal/http/middleware/idempotency_middleware.go` |
 | `auth.request.duration` | Histogram (float64) | `s` | `endpoint`, `status` | `RecordAuthRequestDuration` calls in `internal/http/handler/auth_handler.go` |
 
@@ -112,6 +116,13 @@ Non-scope:
 - `flow`: `verify_request`, `verify_confirm`, `password_forgot`, `password_reset`, `password_change`
 - `outcome` values used: `accepted`, `success`, `failure`, `not_enabled`, `invalid_token`, `weak_password`, `rate_limited`, `unauthorized`
 
+`auth.oauth.google.request.duration`
+- `operation`: `exchange`, `userinfo`
+- `status`: `success`, `error`
+
+`auth.oauth.google.errors`
+- `error_class` values used: `timeout`, `context_canceled`, `userinfo_status`, `invalid_userinfo`, `oauth2_exchange`, `email_not_verified`, `other`
+
 `admin.list.request.duration`
 - `endpoint`: `admin.users`, `admin.roles`, `admin.permissions`
 - `status`: `success`, `not_modified`, `bad_request`, `error`
@@ -162,6 +173,10 @@ Non-scope:
 - `stage`: `traffic`, `exemplar`, `tempo`, `loki`
 - `outcome`: `success`, `error`
 
+`security.bypass.events`
+- `reason` values include: `internal_probe_path`, `trusted_actor_cidr`, `trusted_actor_subject`, `unspecified`
+- `scope` values include: rate limiter scopes (for example `api`, `auth`, `admin_read`) and auth abuse scopes (`auth.login`, `auth.password_forgot`)
+
 `admin.rbac.mutations`
 - `entity`: `user_role`, `role`, `permission`, `sync`
 - `action`: `set_user_roles`, `create`, `update`, `delete`, `sync`
@@ -171,8 +186,12 @@ Non-scope:
 - `outcome` values used: `hit`, `miss`, `store`, `store_error`, `encode_error`, `invalidate`, `invalidate_error`, `singleflight_leader`, `singleflight_shared`, `error`, `negative_hit`, `negative_miss`, `negative_store`, `negative_store_error`, `negative_invalidate`, `negative_invalidate_error`, `etag_ok`, `etag_not_modified`
 - `endpoint` is a namespace string (examples): `admin.users.list`, `admin.roles.list`, `admin.permissions.list`, `admin.lookup.roles.missing`, `admin.lookup.permissions.missing`
 
+`auth.rbac.authorization.events`
+- `outcome`: `allowed`, `denied`, `resolver_error`
+- `required_permission` values follow route middleware declarations (for example `users:read`, `roles:write`, `permissions:read`)
+
 `auth.rbac.permission.cache.events`
-- `outcome` values used: `allowed`, `resolve_error`, `singleflight_leader`, `singleflight_shared`, `invalidate_user`, `invalidate_user_error`, `invalidate_user_skipped`, `invalidate_all`, `invalidate_all_error`, `invalidate_all_skipped`
+- `outcome` values used: `singleflight_leader`, `singleflight_shared`, `invalidate_user`, `invalidate_user_error`, `invalidate_user_skipped`, `invalidate_all`, `invalidate_all_error`, `invalidate_all_skipped`
 
 `http.idempotency.events`
 - `outcome` values used: `missing_key`, `invalid_key`, `read_error`, `store_error`, `conflict`, `in_progress`, `replayed`, `created`

@@ -150,6 +150,10 @@ func (rl *RateLimiter) Middleware() func(http.Handler) http.Handler {
 			if rl.bypassEvaluator != nil {
 				if bypass, reason := rl.bypassEvaluator(r); bypass {
 					observability.RecordRateLimitDecision(r.Context(), rl.scope, "bypass", string(rl.mode), keyType)
+					if reason == "" {
+						reason = "unspecified"
+					}
+					observability.RecordSecurityBypassEvent(r.Context(), reason, rl.scope)
 					slog.Debug("rate limiter bypass applied", "scope", rl.scope, "reason", reason, "path", r.URL.Path)
 					next.ServeHTTP(w, r)
 					return
