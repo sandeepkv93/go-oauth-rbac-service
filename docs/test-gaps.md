@@ -11,10 +11,10 @@ This gap analysis covers the full repository (all `internal/**`, `cmd/**`, and `
 
 Current baseline from catalog:
 
-- Test files: 48
-- Unit test files: 30
-- Integration test files: 18
-- Declared test functions: 177
+- Test files: 50
+- Unit test files: 31
+- Integration test files: 19
+- Declared test functions: 183
 
 ## High-Level Coverage Posture
 
@@ -32,25 +32,9 @@ Most meaningful gaps are concentrated in:
 - Service business logic (`SessionService`, `UserService`)
 - Repository CRUD/filter/sort semantics (except session repository)
 - Redis-backed cache/guard/store implementations (direct unit tests)
-- Router and health endpoint behavior
 - CLI/tooling and startup wiring smoke paths
 
 ## P1 Gaps (Important)
-
-### 6) Router and health endpoint behavior (integration + unit)
-
-Current state:
-
-- Health internals have unit tests; no API-level health endpoint tests.
-- Router registration/composition itself has no tests.
-
-Missing scenarios:
-
-- `/health/live` always 200 + stable payload.
-- `/health/ready` with `nil` runner (ready) and unready dependency branch (503).
-- Router fallback rate limiter wiring when custom/global limiter not provided.
-- Route-policy overrides are applied per named route policy.
-- CSRF protection route scoping around refresh/logout/change-password and session revocation endpoints.
 
 ### 7) Repository layer has sparse direct coverage (unit/integration)
 
@@ -131,14 +115,11 @@ Note:
 
 ## Recommended Implementation Sequence
 
-1. P1-6: Add health/router integration and unit tests.
-2. P1-7/8: Fill repository and Redis-store unit tests.
-3. P1-9/10 and P2: Observability/security/tooling hardening coverage.
+1. P1-7/8: Fill repository and Redis-store unit tests.
+2. P1-9/10 and P2: Observability/security/tooling hardening coverage.
 
 ## Concrete New Test Files to Add
 
-- `test/integration/health_endpoints_test.go`
-- `internal/http/router/router_test.go`
 - `internal/repository/user_repository_test.go`
 - `internal/repository/role_repository_test.go`
 - `internal/repository/permission_repository_test.go`

@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "router",
@@ -15,5 +15,16 @@ go_library(
         "@com_github_go_chi_chi_v5//:chi",
         "@com_github_go_chi_chi_v5//middleware",
         "@io_opentelemetry_go_contrib_instrumentation_net_http_otelhttp//:otelhttp",
+    ],
+)
+
+go_test(
+    name = "router_test",
+    srcs = ["router_test.go"],
+    embed = [":router"],
+    deps = [
+        "//internal/health",
+        "//internal/security",
+        "//internal/service",
     ],
 )

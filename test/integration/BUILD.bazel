@@ -13,6 +13,7 @@ go_test(
         "auth_lifecycle_test.go",
         "auth_middleware_test.go",
         "email_verification_test.go",
+        "health_endpoints_test.go",
         "idempotency_test.go",
         "password_reset_test.go",
         "problem_details_test.go",

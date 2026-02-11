@@ -4,12 +4,12 @@ Generated from repository test sources (`*_test.go`) and test function declarati
 
 ## Summary
 
-- Total test files: 48
-- Unit test files: 30
-- Integration test files: 18
-- Total test functions: 177
-- Unit test functions: 129
-- Integration test functions: 48
+- Total test files: 50
+- Unit test files: 31
+- Integration test files: 19
+- Total test functions: 183
+- Unit test functions: 134
+- Integration test functions: 49
 
 ## Unit Tests
 
@@ -39,6 +39,8 @@ Generated from repository test sources (`*_test.go`) and test function declarati
   - `TestUserHandlerMeErrorMapping`, `TestUserHandlerSessionsResolveFallbackAndErrors`, `TestUserHandlerRevokeSessionMatrix`, `TestUserHandlerRevokeOtherSessionsMatrix`, `TestAuthUserIDAndClaimsParseError`, `TestSessionViewJSONShapeSmoke`
 - `internal/http/response/response_test.go`
   - `TestError_DefaultEnvelopeWhenProblemNotRequested`, `TestError_ProblemDetailsWhenRequested`, `TestError_ContentNegotiationVariants`, `TestError_StatusTypeCodeConsistencyForKeyStatuses`
+- `internal/http/router/router_test.go`
+  - `TestRouterHealthReadyNilAndUnreadyBranches`, `TestRouterHealthLiveAlwaysOKWithDefaultLimiter`, `TestRouterFallbackGlobalRateLimiterWhenCustomNil`, `TestRouterRoutePolicyOverridesPerNamedPolicy`, `TestRouterCSRFScopeOnSensitiveRoutes`
 - `internal/observability/audit_test.go`
   - `TestAuditEventValidateRejectsMissingEventName`, `TestBuildAuditEventIncludesRequiredFields`
 - `internal/observability/redis_metrics_test.go`
@@ -96,6 +98,8 @@ Generated from repository test sources (`*_test.go`) and test function declarati
   - `TestProtectedRouteRequiresToken`
 - `test/integration/email_verification_test.go`
   - `TestEmailVerificationReuseAndInvalidTokenFailUniformly`, `TestEmailVerificationRegisterRequestConfirmAndLogin`, `TestEmailVerificationRequestUnknownEmailReturnsAccepted`, `TestEmailVerificationExpiredTokenFails`
+- `test/integration/health_endpoints_test.go`
+  - `TestHealthLiveAndReadyEndpoints`
 - `test/integration/idempotency_test.go`
   - `TestIdempotencyRegisterReplayAndConflict`, `TestIdempotencyMissingKeyRejectedOnScopedEndpoint`, `TestIdempotencyAdminRoleCreateReplay`
 - `test/integration/password_reset_test.go`
@@ -118,6 +122,7 @@ Generated from repository test sources (`*_test.go`) and test function declarati
 - `internal/http/middleware/BUILD.bazel`: name = "middleware_test",
 - `internal/http/handler/BUILD.bazel`: name = "handler_test",
 - `internal/http/response/BUILD.bazel`: name = "response_test",
+- `internal/http/router/BUILD.bazel`: name = "router_test",
 - `internal/health/BUILD.bazel`: name = "health_test",
 - `internal/repository/BUILD.bazel`: name = "repository_test",
 - `internal/config/BUILD.bazel`: name = "config_test",
