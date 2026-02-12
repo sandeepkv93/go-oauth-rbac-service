@@ -268,7 +268,9 @@ This order gets reliable Kubernetes parity quickly, then layers observability co
 - Secret lifecycle hardening:
   - ✅ added optional `k8s/overlays/secrets/external-secrets` path with CI validation hook.
   - ✅ added concrete ClusterSecretStore overlays for AWS and Vault with CI validation.
-  - next: replace template values with environment-specific credentials/identity wiring.
+  - ✅ added environment-scoped ExternalSecret overlays (`dev|staging|prod`) using explicit remote key paths.
+  - ✅ added auth-mode-specific ClusterSecretStore overlays (AWS IRSA/static, Vault Kubernetes/token) with CI validation.
+  - next: wire environment-specific IAM/Vault roles and secret names per cluster in platform IaC.
   - keep SOPS as fallback for non-cloud local workflows.
 - Capacity and retention hardening:
   - finalize per-component retention and storage sizing defaults for Tempo/Loki/Mimir.

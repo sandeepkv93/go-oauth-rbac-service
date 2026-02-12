@@ -12,8 +12,10 @@ for tool in kustomize conftest; do
 done
 
 TARGETS=(
-  "k8s/overlays/secrets/stores/aws"
-  "k8s/overlays/secrets/stores/vault"
+  "k8s/overlays/secrets/stores/aws-irsa"
+  "k8s/overlays/secrets/stores/aws-static"
+  "k8s/overlays/secrets/stores/vault-kubernetes"
+  "k8s/overlays/secrets/stores/vault-token"
 )
 
 for target in "${TARGETS[@]}"; do

@@ -25,6 +25,12 @@ deny[msg] {
 
 deny[msg] {
   is_external_secret
+  object.get(input.spec.secretStoreRef, "kind", "") != "ClusterSecretStore"
+  msg := "ExternalSecret secretStoreRef.kind must be ClusterSecretStore"
+}
+
+deny[msg] {
+  is_external_secret
   not input.spec.target
   msg := "ExternalSecret must set spec.target"
 }
@@ -39,4 +45,25 @@ deny[msg] {
   is_external_secret
   count(object.get(input.spec, "data", [])) == 0
   msg := "ExternalSecret must define at least one spec.data mapping"
+}
+
+env_path_ok(key) {
+  regex.match("^secure-observable\\/(dev|staging|prod)\\/app$", key)
+}
+
+deny[msg] {
+  is_external_secret
+  d := input.spec.data[_]
+  key := object.get(d.remoteRef, "key", "")
+  key == ""
+  msg := sprintf("ExternalSecret mapping %q must define remoteRef.key", [object.get(d, "secretKey", "")])
+}
+
+deny[msg] {
+  is_external_secret
+  d := input.spec.data[_]
+  key := object.get(d.remoteRef, "key", "")
+  key != ""
+  not env_path_ok(key)
+  msg := sprintf("ExternalSecret mapping %q uses invalid remoteRef.key %q; expected secure-observable/{dev|staging|prod}/app", [object.get(d, "secretKey", ""), key])
 }

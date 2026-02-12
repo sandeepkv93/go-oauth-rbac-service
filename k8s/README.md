@@ -106,20 +106,29 @@ task k8s:secrets-generate
 task k8s:secrets-apply
 ```
 
-External Secrets optional overlay (for external secret manager backed environments):
+External Secrets optional overlays (environment-scoped remote keys):
 
 ```bash
 task k8s:validate-external-secrets
-kubectl apply -k k8s/overlays/secrets/external-secrets
+task k8s:apply-external-secrets-dev
+# or
+task k8s:apply-external-secrets-staging
+# or
+task k8s:apply-external-secrets-prod
 ```
 
-ClusterSecretStore templates (apply exactly one provider overlay per cluster):
+ClusterSecretStore overlays (pick exactly one auth mode per cluster):
 
 ```bash
 task k8s:validate-secret-stores
-task k8s:apply-secret-store-aws
-# or
-task k8s:apply-secret-store-vault
+# AWS (recommended identity mode)
+task k8s:apply-secret-store-aws-irsa
+# AWS fallback (static credentials secret)
+task k8s:apply-secret-store-aws-static
+# Vault (recommended Kubernetes auth mode)
+task k8s:apply-secret-store-vault-kubernetes
+# Vault fallback (token secret)
+task k8s:apply-secret-store-vault-token
 ```
 
 Encrypted secret path (recommended):

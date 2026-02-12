@@ -148,10 +148,39 @@ tasks:
     cmds:
       - bash scripts/ci/run_k8s_secret_stores_validate.sh
 
+  k8s:apply-external-secrets-dev:
+    cmds:
+      - kubectl apply -k k8s/overlays/secrets/external-secrets/dev
+
+  k8s:apply-external-secrets-staging:
+    cmds:
+      - kubectl apply -k k8s/overlays/secrets/external-secrets/staging
+
+  k8s:apply-external-secrets-prod:
+    cmds:
+      - kubectl apply -k k8s/overlays/secrets/external-secrets/prod
+
+  k8s:apply-secret-store-aws-irsa:
+    cmds:
+      - kubectl apply -k k8s/overlays/secrets/stores/aws-irsa
+
+  k8s:apply-secret-store-aws-static:
+    cmds:
+      - kubectl apply -k k8s/overlays/secrets/stores/aws-static
+
+  k8s:apply-secret-store-vault-kubernetes:
+    cmds:
+      - kubectl apply -k k8s/overlays/secrets/stores/vault-kubernetes
+
+  k8s:apply-secret-store-vault-token:
+    cmds:
+      - kubectl apply -k k8s/overlays/secrets/stores/vault-token
+
+  # Compatibility aliases
   k8s:apply-secret-store-aws:
     cmds:
-      - kubectl apply -k k8s/overlays/secrets/stores/aws
+      - task k8s:apply-secret-store-aws-irsa
 
   k8s:apply-secret-store-vault:
     cmds:
-      - kubectl apply -k k8s/overlays/secrets/stores/vault
+      - task k8s:apply-secret-store-vault-kubernetes

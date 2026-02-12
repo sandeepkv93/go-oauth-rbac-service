@@ -11,18 +11,24 @@ for tool in kustomize conftest; do
   fi
 done
 
-target="k8s/overlays/secrets/external-secrets"
+TARGETS=(
+  "k8s/overlays/secrets/external-secrets/dev"
+  "k8s/overlays/secrets/external-secrets/staging"
+  "k8s/overlays/secrets/external-secrets/prod"
+)
 
-echo "ci: kustomize build ${target}"
-manifest_file="$(mktemp /tmp/kustomize-external-secrets.XXXXXX.yaml)"
-kustomize build "${target}" >"${manifest_file}"
+for target in "${TARGETS[@]}"; do
+  echo "ci: kustomize build ${target}"
+  manifest_file="$(mktemp /tmp/kustomize-external-secrets.XXXXXX.yaml)"
+  kustomize build "${target}" >"${manifest_file}"
 
-echo "ci: conftest external secrets policy"
-conftest test \
-  --policy policy/k8s \
-  --namespace k8s.externalsecret \
-  "${manifest_file}"
+  echo "ci: conftest external secrets policy (${target})"
+  conftest test \
+    --policy policy/k8s \
+    --namespace k8s.externalsecret \
+    "${manifest_file}"
 
-rm -f "${manifest_file}"
+  rm -f "${manifest_file}"
+done
 
 echo "ci: external secrets overlay validation passed"
