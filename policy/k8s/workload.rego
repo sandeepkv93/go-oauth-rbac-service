@@ -12,7 +12,6 @@ pod_security_exemptions := {
   "StatefulSet/redis",
   "Deployment/loki",
   "Deployment/mimir",
-  "Deployment/grafana",
 }
 
 # Containers that are temporarily exempt from strict container-level controls.
@@ -22,7 +21,6 @@ container_security_exemptions := {
   "StatefulSet/redis/redis",
   "Deployment/loki/loki",
   "Deployment/mimir/mimir",
-  "Deployment/grafana/grafana",
 }
 
 is_workload {
