@@ -18,7 +18,7 @@ func TestNewAssignsDependenciesAndTimeouts(t *testing.T) {
 		ShutdownObservabilityTimeout: 3 * time.Second,
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	server := &http.Server{Addr: ":8080"}
+	server := &http.Server{Addr: ":8080", ReadHeaderTimeout: time.Second}
 	readiness := health.NewProbeRunner(100*time.Millisecond, 50*time.Millisecond)
 	stopped := false
 	stop := func() { stopped = true }
