@@ -138,6 +138,12 @@ Development overlay deploy (NodePort API service):
 task k8s:deploy-dev
 ```
 
+Production-like app overlay deploy (replicas, rollout strategy, and API PDB):
+
+```bash
+task k8s:deploy-prod-like
+```
+
 Observability overlay deploy:
 
 ```bash

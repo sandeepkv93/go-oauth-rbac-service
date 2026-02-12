@@ -252,3 +252,27 @@ The migration is successful when:
 4. Phase 3 observability overlay (optional but recommended)
 
 This order gets reliable Kubernetes parity quickly, then layers observability complexity safely.
+
+## 13) Phase 5: Operational Hardening Backlog (Next)
+
+### 13.1 In progress (this batch)
+- Added app `prod-like` overlay at `k8s/overlays/prod-like`.
+- Added API rollout hardening:
+  - replicas: 2
+  - rolling update: `maxUnavailable: 0`, `maxSurge: 1`
+- Added API PodDisruptionBudget (`minAvailable: 1`).
+- Wired `prod-like` into deployment automation and task aliases.
+- Extended CI manifest/policy target lists to include `k8s/overlays/prod-like`.
+
+### 13.2 Remaining backlog
+- Secret lifecycle hardening:
+  - choose and implement external secret manager path (for example External Secrets + cloud secret backend).
+  - keep SOPS as fallback for non-cloud local workflows.
+- Capacity and retention hardening:
+  - finalize per-component retention and storage sizing defaults for Tempo/Loki/Mimir.
+  - define alert thresholds for PVC usage and ingestion backpressure.
+- Availability hardening:
+  - decide default replica policy for API in non-dev overlays.
+  - define PDB strategy for stateful data services aligned with maintenance windows.
+- Rollout safety:
+  - add progressive delivery policy for API (canary/blue-green or staged rollout by environment).

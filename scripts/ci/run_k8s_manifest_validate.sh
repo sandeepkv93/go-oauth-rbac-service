@@ -16,6 +16,7 @@ KUBE_VERSION="${KUBE_VERSION:-1.30.0}"
 KUSTOMIZATION_TARGETS=(
   "k8s/base"
   "k8s/overlays/development"
+  "k8s/overlays/prod-like"
   "k8s/overlays/observability-base"
   "k8s/overlays/observability"
   "k8s/overlays/observability/dev"
