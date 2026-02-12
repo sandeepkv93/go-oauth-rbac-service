@@ -16,15 +16,27 @@ spec:
         app.kubernetes.io/name: mimir
         app.kubernetes.io/component: observability
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: mimir
           image: grafana/mimir:2.13.0
           args:
             - -config.file=/etc/mimir.yaml
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 9009
               name: http
           volumeMounts:
+            - name: mimir-tmp
+              mountPath: /tmp
             - name: mimir-config
               mountPath: /etc/mimir.yaml
               subPath: mimir.yaml
@@ -46,6 +58,8 @@ spec:
               cpu: 500m
               memory: 512Mi
       volumes:
+        - name: mimir-tmp
+          emptyDir: {}
         - name: mimir-config
           configMap:
             name: mimir-config
