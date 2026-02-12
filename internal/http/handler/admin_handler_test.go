@@ -574,12 +574,10 @@ func FuzzParseAdminListSortParamsRobustness(f *testing.F) {
 		if len(rawSortOrder) > 256 {
 			rawSortOrder = rawSortOrder[:256]
 		}
-		if len(defaultField) > 64 {
-			defaultField = defaultField[:64]
+		defaultField = strings.ToLower(strings.TrimSpace(defaultField))
+		if _, ok := allowed[defaultField]; !ok {
+			defaultField = "created_at"
 		}
-
-		// Keep default field valid for success-path invariants while still fuzzing query values.
-		defaultField = "created_at"
 
 		q := url.Values{}
 		q.Set("sort_by", rawSortBy)

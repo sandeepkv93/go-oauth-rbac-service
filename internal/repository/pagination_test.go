@@ -89,7 +89,7 @@ func FuzzCalcTotalPagesInvariants(f *testing.F) {
 		}
 		lowerBound := int64(got-1) * int64(pageSize)
 		upperBound := int64(got) * int64(pageSize)
-		if !(lowerBound < total && total <= upperBound) {
+		if lowerBound >= total || total > upperBound {
 			t.Fatalf("ceil invariant failed: pages=%d total=%d pageSize=%d bounds=(%d,%d]", got, total, pageSize, lowerBound, upperBound)
 		}
 
