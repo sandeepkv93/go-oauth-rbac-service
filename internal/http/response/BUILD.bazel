@@ -11,6 +11,9 @@ go_library(
 go_test(
     name = "response_test",
     srcs = ["response_test.go"],
-    data = glob(["testdata/**"], allow_empty = True),
+    data = glob(
+        ["testdata/**"],
+        allow_empty = True,
+    ),
     embed = [":response"],
 )
