@@ -9,14 +9,12 @@ workload_kinds := {"Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob"}
 # Format: <Kind>/<name>
 pod_security_exemptions := {
   "StatefulSet/postgres",
-  "StatefulSet/redis",
 }
 
 # Containers that are temporarily exempt from strict container-level controls.
 # Format: <Kind>/<name>/<container>
 container_security_exemptions := {
   "StatefulSet/postgres/postgres",
-  "StatefulSet/redis/redis",
 }
 
 is_workload {
