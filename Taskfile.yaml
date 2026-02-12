@@ -19,3 +19,6 @@ includes:
   ci:
     taskfile: ./taskfiles/ci.yaml
     flatten: true
+  k8s:
+    taskfile: ./taskfiles/k8s.yaml
+    flatten: true

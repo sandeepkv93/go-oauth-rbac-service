@@ -1,0 +1,60 @@
+version: "3"
+
+vars:
+  K8S_NAMESPACE: secure-observable
+  KIND_CLUSTER_NAME: secure-observable
+  K8S_BASE_PATH: k8s/base
+  API_IMAGE: secure-observable-api:dev
+
+tasks:
+  k8s:kind-create:
+    cmds:
+      - kind create cluster --name {{.KIND_CLUSTER_NAME}} --config k8s/kind-config.yaml
+
+  k8s:kind-delete:
+    cmds:
+      - kind delete cluster --name {{.KIND_CLUSTER_NAME}}
+
+  k8s:image-build:
+    cmds:
+      - docker build -t {{.API_IMAGE}} .
+
+  k8s:image-load-kind:
+    cmds:
+      - kind load docker-image {{.API_IMAGE}} --name {{.KIND_CLUSTER_NAME}}
+
+  k8s:image-build-load-kind:
+    cmds:
+      - task k8s:image-build
+      - task k8s:image-load-kind
+
+  k8s:secrets-apply:
+    cmds:
+      - bash k8s/scripts/secrets.sh apply
+
+  k8s:secrets-encrypt:
+    cmds:
+      - bash k8s/scripts/secrets.sh encrypt
+
+  k8s:deploy-base:
+    cmds:
+      - kubectl apply -k {{.K8S_BASE_PATH}}
+
+  k8s:rollout:
+    cmds:
+      - kubectl -n {{.K8S_NAMESPACE}} rollout status statefulset/postgres
+      - kubectl -n {{.K8S_NAMESPACE}} rollout status statefulset/redis
+      - kubectl -n {{.K8S_NAMESPACE}} rollout status deployment/secure-observable-api
+
+  k8s:status:
+    cmds:
+      - kubectl -n {{.K8S_NAMESPACE}} get pods,svc,ingress
+
+  k8s:setup-full:
+    cmds:
+      - task k8s:kind-create
+      - task k8s:image-build-load-kind
+      - task k8s:secrets-apply
+      - task k8s:deploy-base
+      - task k8s:rollout
+      - task k8s:status

@@ -1,4 +1,5 @@
 .env
+.secrets.k8s.app.env
 .codex/
 .agent-cache/
 bin/

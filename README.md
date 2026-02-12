@@ -124,6 +124,7 @@ Endpoints:
 
 - [Project guide (full documentation)](docs/project-guide.md)
 - [Architecture and flow diagrams](docs/diagrams.md)
+- [Kubernetes deployment guide](k8s/README.md)
 - [Audit Taxonomy](docs/audit-taxonomy.md)
 
 ## License
