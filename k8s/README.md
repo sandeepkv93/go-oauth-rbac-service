@@ -191,6 +191,8 @@ task k8s:cluster-delete
 ## Notes
 
 - `AUTH_GOOGLE_ENABLED` is disabled in this Phase 1 baseline.
+- OPA workload policy currently has zero scoped exemptions (all managed workloads satisfy baseline controls).
+- CI manifest schema validation runs in strict mode (no `-ignore-missing-schemas`).
 - Observability components are optional overlays and not part of default `k8s:setup-full`.
 - Ingress is enabled in base (`secure-observable.local`, `ingressClassName: nginx`).
 - One-command local setup is available:

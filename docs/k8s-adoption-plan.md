@@ -9,6 +9,17 @@ Adopt a production-aware Kubernetes deployment model for this repository, with f
 
 This plan is based on a full review of `sandeepkv93/cloudnative-observable-fullstack`, especially its `k8s/` stack, scripts, overlays, and Task automation, and tuned for this repo's architecture.
 
+## 1.1) Current Status (as of 2026-02-12)
+- ✅ Phase 0 complete (design, scaffold, naming, docs)
+- ✅ Phase 1 complete (base API+Postgres+Redis manifests)
+- ✅ Phase 2 complete (Kind scripts + full Task alias parity)
+- ✅ Phase 3 complete (observability overlays: base/dev/ci/prod-like/prod-like-ha)
+- ✅ Phase 4 baseline complete (k8s-kind-smoke, manifest validation, OPA policy checks)
+- ✅ OPA scoped exemptions burned down to zero
+- ✅ `kubeconform` runs in strict mode without `-ignore-missing-schemas`
+- 🔄 Remaining hardening is operational/SRE depth (retention/capacity tuning, rollout strategy, secret manager adoption)
+
+
 ## 2) What The Reference Repo Does Well (to reuse)
 The reference setup already demonstrates a complete local-Kubernetes experience:
 - `k8s/` split into `base/` + `overlays/development/` with Kustomize
@@ -133,7 +144,7 @@ Avoid plaintext secret YAML in git.
 
 ## 7) Phased Implementation Plan
 
-## Phase 0: Design + Guardrails
+## Phase 0: Design + Guardrails (Completed)
 - Add `docs/k8s-adoption-plan.md` (this doc).
 - Decide local namespace (`secure-observable`) and service DNS names.
 - Decide whether observability ships in MVP or separate overlay.
@@ -142,7 +153,7 @@ Deliverables:
 - finalized folder scaffold under `k8s/`
 - naming conventions doc in `k8s/README.md`
 
-## Phase 1: Base Kubernetes MVP (API + DB + Redis)
+## Phase 1: Base Kubernetes MVP (API + DB + Redis) (Completed)
 - Create `k8s/base` manifests with Kustomize entrypoints.
 - API Deployment uses existing image and env wiring from ConfigMap/Secret.
 - Add probes:
@@ -157,7 +168,7 @@ Validation:
 - `kubectl rollout status` for api/postgres/redis
 - `curl` health endpoints through port-forward/NodePort
 
-## Phase 2: Kind Local Workflow
+## Phase 2: Kind Local Workflow (Completed)
 - Add `k8s/kind-config.yaml` with ingress-ready control-plane and required port mappings.
 - Add `k8s/scripts/kind-setup.sh`:
   - prereq checks (`kind`, `kubectl`, docker)
@@ -176,7 +187,7 @@ Validation:
 - one-command local bring-up (`task k8s:setup-full`)
 - deterministic teardown/recreate
 
-## Phase 3: Observability Overlay
+## Phase 3: Observability Overlay (Completed)
 - Implement `k8s/overlays/observability` for:
   - OTel Collector
   - Tempo/Loki/Mimir
@@ -188,7 +199,7 @@ Validation:
 - telemetry from API reaches collector and backends
 - Grafana dashboards load and query traces/logs/metrics
 
-## Phase 4: CI and Policy Integration
+## Phase 4: CI and Policy Integration (Completed baseline)
 - Add CI job: `k8s-kind-smoke` (manual trigger + PR optional/nightly):
   - create Kind cluster
   - apply `k8s/overlays/ci` (lean profile)
