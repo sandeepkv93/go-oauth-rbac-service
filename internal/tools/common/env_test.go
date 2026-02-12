@@ -1,8 +1,10 @@
 package common
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -39,4 +41,50 @@ func TestLoadEnvFileOpenError(t *testing.T) {
 	if err := LoadEnvFile(dir); err == nil {
 		t.Fatal("expected error when path is a directory")
 	}
+}
+
+func FuzzLoadEnvFileRobustness(f *testing.F) {
+	f.Add([]byte("KEY=value\nANOTHER=ok\n"))
+	f.Add([]byte("INVALID_LINE\n# comment\n QUOTED = \"x\" \n"))
+	f.Add([]byte("UNICODE_🔥=こんにちは\n"))
+	f.Add([]byte("NO_EQUALS_LINE\nBROKEN"))
+	f.Add(bytes.Repeat([]byte("A"), 70000))
+
+	f.Fuzz(func(t *testing.T, content []byte) {
+		if len(content) > 200000 {
+			content = content[:200000]
+		}
+
+		dir := t.TempDir()
+		file := filepath.Join(dir, "fuzz.env")
+		if err := os.WriteFile(file, content, 0o600); err != nil {
+			t.Fatalf("write env file: %v", err)
+		}
+
+		classify := func(err error) string {
+			if err == nil {
+				return "none"
+			}
+			msg := err.Error()
+			switch {
+			case strings.Contains(msg, "open env file:"):
+				return "open"
+			case strings.Contains(msg, "read env file:"):
+				return "read"
+			default:
+				return "other"
+			}
+		}
+
+		err1 := LoadEnvFile(file)
+		err2 := LoadEnvFile(file)
+		c1 := classify(err1)
+		c2 := classify(err2)
+		if c1 != c2 {
+			t.Fatalf("error classification must be deterministic: first=%q second=%q err1=%v err2=%v", c1, c2, err1, err2)
+		}
+		if c1 == "other" {
+			t.Fatalf("unexpected error class: err1=%v err2=%v", err1, err2)
+		}
+	})
 }

@@ -7,8 +7,8 @@ Generated from repository test sources (`*_test.go`) and test function declarati
 - Total test files: 85
 - Unit test files: 66
 - Integration test files: 19
-- Total test functions: 277
-- Unit test functions: 228
+- Total test functions: 279
+- Unit test functions: 230
 - Integration test functions: 49
 
 ## Unit Tests
@@ -16,7 +16,7 @@ Generated from repository test sources (`*_test.go`) and test function declarati
 - `internal/config/config_profile_test.go`
   - `TestValidateTrustedActorBypassRequiresAllowlist`, `TestValidateTrustedActorBypassAcceptsCIDR`, `TestValidateRedisPoolSettings`, `TestValidateNonLocalRedisRequiresACLAndTLS`, `TestValidateRedisNamespacePattern`, `TestValidateIdempotencyDBCleanupSettings`, `TestValidateRateLimitRedisOutagePolicies`, `TestValidateProdProfileDisallowsFailOpenForSensitiveRateLimitScopes`, `TestValidateDevelopmentProfileAllowsRelaxedSettings`, `TestValidateProdProfileStrictRules`
 - `internal/config/metrics_test.go`
-  - `TestNormalizeConfigProfile`, `TestClassifyConfigLoadError`
+  - `TestNormalizeConfigProfile`, `TestClassifyConfigLoadError`, `FuzzNormalizeConfigProfileRobustness`
 - `internal/database/migrate_test.go`
   - `TestMigrateSuccessCreatesTables`, `TestMigrateFailureWhenDBClosed`
 - `internal/database/postgres_test.go`
@@ -132,7 +132,7 @@ Generated from repository test sources (`*_test.go`) and test function declarati
 - `internal/service/user_service_test.go`
   - `TestUserServiceGetByID`, `TestUserServiceListDelegatesToRepo`, `TestUserServiceListError`, `TestUserServiceSetRolesDelegatesAndPropagatesErrors`, `TestUserServiceAddRoleDelegatesAndPropagatesErrors`
 - `internal/tools/common/env_test.go`
-  - `TestLoadEnvFileMissingIsNoop`, `TestLoadEnvFileLoadsAndPreservesExisting`, `TestLoadEnvFileOpenError`
+  - `TestLoadEnvFileMissingIsNoop`, `TestLoadEnvFileLoadsAndPreservesExisting`, `TestLoadEnvFileOpenError`, `FuzzLoadEnvFileRobustness`
 - `internal/tools/common/output_test.go`
   - `TestPrintCIResultJSONOutput`
 - `internal/tools/migrate/command_test.go`

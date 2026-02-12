@@ -2,7 +2,9 @@ package config
 
 import (
 	"errors"
+	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestClassifyConfigLoadError(t *testing.T) {
@@ -33,4 +35,34 @@ func TestNormalizeConfigProfile(t *testing.T) {
 	if got := normalizeConfigProfile("   "); got != "unknown" {
 		t.Fatalf("expected unknown, got %q", got)
 	}
+}
+
+func FuzzNormalizeConfigProfileRobustness(f *testing.F) {
+	f.Add("  ProD  ")
+	f.Add("   ")
+	f.Add("")
+	f.Add("🔥PROD🔥")
+	f.Add(strings.Repeat("A", 4096))
+
+	f.Fuzz(func(t *testing.T, raw string) {
+		if len(raw) > 8192 {
+			raw = raw[:8192]
+		}
+
+		got := normalizeConfigProfile(raw)
+		if got == "" {
+			t.Fatal("normalized profile must not be empty")
+		}
+		if strings.TrimSpace(raw) == "" && got != "unknown" {
+			t.Fatalf("expected unknown for empty/whitespace input, got %q", got)
+		}
+		if !utf8.ValidString(got) {
+			t.Fatalf("normalized profile must be valid UTF-8: %q", got)
+		}
+
+		again := normalizeConfigProfile(raw)
+		if got != again {
+			t.Fatalf("normalizeConfigProfile must be deterministic: first=%q second=%q", got, again)
+		}
+	})
 }

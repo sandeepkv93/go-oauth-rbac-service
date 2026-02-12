@@ -23,5 +23,7 @@ go test ./internal/repository -run=^$ -fuzz=FuzzNormalizePageRequestInvariants -
 go test ./internal/repository -run=^$ -fuzz=FuzzCalcTotalPagesInvariants -fuzztime="${FUZZ_LONG_TIME}"
 go test ./internal/http/handler -run=^$ -fuzz=FuzzParseAdminListPageRequestRobustness -fuzztime="${FUZZ_LONG_TIME}"
 go test ./internal/http/handler -run=^$ -fuzz=FuzzParseAdminListSortParamsRobustness -fuzztime="${FUZZ_LONG_TIME}"
+go test ./internal/config -run=^$ -fuzz=FuzzNormalizeConfigProfileRobustness -fuzztime="${FUZZ_LONG_TIME}"
+go test ./internal/tools/common -run=^$ -fuzz=FuzzLoadEnvFileRobustness -fuzztime="${FUZZ_LONG_TIME}"
 
 echo "ci: long fuzz run passed"

@@ -23,5 +23,7 @@ go test ./internal/repository -run=^$ -fuzz=FuzzNormalizePageRequestInvariants -
 go test ./internal/repository -run=^$ -fuzz=FuzzCalcTotalPagesInvariants -fuzztime="${FUZZ_SMOKE_TIME}"
 go test ./internal/http/handler -run=^$ -fuzz=FuzzParseAdminListPageRequestRobustness -fuzztime="${FUZZ_SMOKE_TIME}"
 go test ./internal/http/handler -run=^$ -fuzz=FuzzParseAdminListSortParamsRobustness -fuzztime="${FUZZ_SMOKE_TIME}"
+go test ./internal/config -run=^$ -fuzz=FuzzNormalizeConfigProfileRobustness -fuzztime="${FUZZ_SMOKE_TIME}"
+go test ./internal/tools/common -run=^$ -fuzz=FuzzLoadEnvFileRobustness -fuzztime="${FUZZ_SMOKE_TIME}"
 
 echo "ci: fuzz smoke passed"
