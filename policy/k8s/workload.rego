@@ -10,7 +10,6 @@ workload_kinds := {"Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob"}
 pod_security_exemptions := {
   "StatefulSet/postgres",
   "StatefulSet/redis",
-  "Deployment/loki",
   "Deployment/mimir",
 }
 
@@ -19,7 +18,6 @@ pod_security_exemptions := {
 container_security_exemptions := {
   "StatefulSet/postgres/postgres",
   "StatefulSet/redis/redis",
-  "Deployment/loki/loki",
   "Deployment/mimir/mimir",
 }
 
