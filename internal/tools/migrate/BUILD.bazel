@@ -20,7 +20,4 @@ go_test(
     name = "migrate_test",
     srcs = ["command_test.go"],
     embed = [":migrate"],
-    deps = [
-        "//internal/tools/common",
-    ],
 )
