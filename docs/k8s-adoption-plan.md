@@ -286,4 +286,6 @@ This order gets reliable Kubernetes parity quickly, then layers observability co
   - ✅ added optional Argo Rollouts blue/green overlay and operational tasks (`deploy-rollout-bluegreen`, `rollout-status/promote/abort`).
   - ✅ codified staging-first governance with explicit production confirmation gate (`ALLOW_PROD_ROLLOUTS=true`).
   - ✅ added rollout overlay CI policy validation gate (`run_k8s_rollout_validate.sh`).
-  - next: decide long-term controller lifecycle ownership and SLO-linked promotion criteria.
+  - ✅ finalized controller lifecycle ownership (Platform/SRE) and promotion authority boundaries in `docs/k8s-rollout-governance.md`.
+  - ✅ implemented enforceable SLO-linked promotion gates (`k8s/scripts/rollout-precheck.sh`) with measurable rollback triggers and break-glass override policy.
+  - ✅ added CI script sanity gate for rollout precheck (`run_k8s_rollout_precheck_script_check.sh`).

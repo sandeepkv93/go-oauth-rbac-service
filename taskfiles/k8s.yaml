@@ -77,6 +77,10 @@ tasks:
     cmds:
       - K8S_NAMESPACE={{.K8S_NAMESPACE}} ROLLOUT_NAME=secure-observable-api bash k8s/scripts/rollouts.sh status
 
+  k8s:rollout-precheck:
+    cmds:
+      - K8S_NAMESPACE={{.K8S_NAMESPACE}} ROLLOUT_NAME=secure-observable-api ROLLOUT_ENV=staging bash k8s/scripts/rollout-precheck.sh
+
   k8s:rollout-promote:
     cmds:
       - K8S_NAMESPACE={{.K8S_NAMESPACE}} ROLLOUT_NAME=secure-observable-api bash k8s/scripts/rollouts.sh promote
@@ -88,6 +92,10 @@ tasks:
   k8s:rollout-promote-production:
     cmds:
       - K8S_NAMESPACE={{.K8S_NAMESPACE}} ROLLOUT_NAME=secure-observable-api ROLLOUT_ENV=production ALLOW_PROD_ROLLOUTS=${ALLOW_PROD_ROLLOUTS:-false} bash k8s/scripts/rollouts.sh promote
+
+  k8s:rollout-precheck-production:
+    cmds:
+      - K8S_NAMESPACE={{.K8S_NAMESPACE}} ROLLOUT_NAME=secure-observable-api ROLLOUT_ENV=production bash k8s/scripts/rollout-precheck.sh
 
   k8s:rollout-abort-production:
     cmds:
@@ -193,6 +201,10 @@ tasks:
   k8s:validate-rollout-overlay:
     cmds:
       - bash scripts/ci/run_k8s_rollout_validate.sh
+
+  k8s:validate-rollout-precheck-script:
+    cmds:
+      - bash scripts/ci/run_k8s_rollout_precheck_script_check.sh
 
   k8s:validate-availability-profiles:
     cmds:

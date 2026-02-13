@@ -5,6 +5,7 @@ NAMESPACE="${K8S_NAMESPACE:-secure-observable}"
 ROLLOUT_NAME="${ROLLOUT_NAME:-secure-observable-api}"
 ROLLOUT_ENV="${ROLLOUT_ENV:-staging}"
 ALLOW_PROD_ROLLOUTS="${ALLOW_PROD_ROLLOUTS:-false}"
+SKIP_PROMOTION_GATES="${SKIP_PROMOTION_GATES:-false}"
 ACTION="${1:-status}"
 
 has_rollouts_plugin() {
@@ -19,6 +20,16 @@ require_prod_confirmation() {
   fi
 }
 
+run_promotion_gates() {
+  if [[ "${SKIP_PROMOTION_GATES}" == "true" ]]; then
+    echo "rollouts: skipping promotion gates due to SKIP_PROMOTION_GATES=true"
+    return 0
+  fi
+
+  echo "rollouts: running SLO-linked promotion gates"
+  K8S_NAMESPACE="${NAMESPACE}" ROLLOUT_NAME="${ROLLOUT_NAME}" ROLLOUT_ENV="${ROLLOUT_ENV}" bash k8s/scripts/rollout-precheck.sh
+}
+
 case "${ACTION}" in
   status)
     if has_rollouts_plugin; then
@@ -30,6 +41,7 @@ case "${ACTION}" in
     ;;
   promote)
     require_prod_confirmation
+    run_promotion_gates
     if ! has_rollouts_plugin; then
       echo "kubectl argo rollouts plugin is required for promote action" >&2
       exit 1

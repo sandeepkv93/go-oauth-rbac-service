@@ -122,6 +122,7 @@ ClusterSecretStore overlays (pick exactly one auth mode per cluster):
 ```bash
 task k8s:validate-secret-stores
 task k8s:validate-rollout-overlay
+task k8s:validate-rollout-precheck-script
 task k8s:validate-availability-profiles
 task k8s:validate-obs-alert-script
 # AWS (recommended identity mode)
@@ -269,8 +270,10 @@ environment-specific disruption policy:
 optional Argo Rollouts blue/green:
 - overlay: `k8s/overlays/rollouts/blue-green`
 - deploy: `task k8s:deploy-rollout-bluegreen`
-- inspect/promote/abort: `task k8s:rollout-status`, `task k8s:rollout-promote`, `task k8s:rollout-abort`
+- inspect/precheck/promote/abort: `task k8s:rollout-status`, `task k8s:rollout-precheck`, `task k8s:rollout-promote`, `task k8s:rollout-abort`
+- production precheck: `task k8s:rollout-precheck-production`
 - requires Argo Rollouts controller + kubectl plugin.
+- default promotion runs SLO-linked prechecks; break-glass override is `SKIP_PROMOTION_GATES=true`.
 
 staging-first governance policy for blue/green:
 - default rollout operations (`task k8s:rollout-promote`, `task k8s:rollout-abort`) are treated as staging actions.
