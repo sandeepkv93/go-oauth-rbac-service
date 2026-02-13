@@ -283,4 +283,6 @@ This order gets reliable Kubernetes parity quickly, then layers observability co
 - Rollout safety:
   - ✅ implemented staged rollout overlays by environment (`staging` and `production`) with guarded rollout windows.
   - ✅ added optional Argo Rollouts blue/green overlay and operational tasks (`deploy-rollout-bluegreen`, `rollout-status/promote/abort`).
-  - next: decide environment adoption policy (staging-only first vs production enablement) and controller lifecycle ownership.
+  - ✅ codified staging-first governance with explicit production confirmation gate (`ALLOW_PROD_ROLLOUTS=true`).
+  - ✅ added rollout overlay CI policy validation gate (`run_k8s_rollout_validate.sh`).
+  - next: decide long-term controller lifecycle ownership and SLO-linked promotion criteria.

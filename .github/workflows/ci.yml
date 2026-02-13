@@ -50,6 +50,9 @@ jobs:
       - name: Validate secret store overlays
         run: bash scripts/ci/run_k8s_secret_stores_validate.sh
 
+      - name: Validate rollout overlay policy
+        run: bash scripts/ci/run_k8s_rollout_validate.sh
+
   fuzz-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 20

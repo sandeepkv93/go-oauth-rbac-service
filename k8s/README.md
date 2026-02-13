@@ -121,6 +121,7 @@ ClusterSecretStore overlays (pick exactly one auth mode per cluster):
 
 ```bash
 task k8s:validate-secret-stores
+task k8s:validate-rollout-overlay
 # AWS (recommended identity mode)
 task k8s:apply-secret-store-aws-irsa
 # AWS fallback (static credentials secret)
@@ -263,3 +264,10 @@ optional Argo Rollouts blue/green:
 - deploy: `task k8s:deploy-rollout-bluegreen`
 - inspect/promote/abort: `task k8s:rollout-status`, `task k8s:rollout-promote`, `task k8s:rollout-abort`
 - requires Argo Rollouts controller + kubectl plugin.
+
+staging-first governance policy for blue/green:
+- default rollout operations (`task k8s:rollout-promote`, `task k8s:rollout-abort`) are treated as staging actions.
+- production rollout actions require explicit approval flag:
+  - `task k8s:rollout-promote-production ALLOW_PROD_ROLLOUTS=true`
+  - `task k8s:rollout-abort-production ALLOW_PROD_ROLLOUTS=true`
+- use `task k8s:validate-rollout-overlay` to enforce rollout manifest policy in CI/local.
