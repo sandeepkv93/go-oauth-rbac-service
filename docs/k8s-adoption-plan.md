@@ -277,7 +277,8 @@ This order gets reliable Kubernetes parity quickly, then layers observability co
   - ✅ added operational threshold check (`task k8s:obs-capacity-check`) for PVC capacity floor and restart/backpressure proxy signals.
   - next: integrate metric-native alerting (PVC usage %, ingestion queue pressure) with cluster Prometheus stack.
 - Availability hardening:
-  - decide default replica policy for API in non-dev overlays.
-  - define PDB strategy for stateful data services aligned with maintenance windows.
+  - ✅ default API replica policy set for non-dev baseline (`prod-like`: replicas 2, maxUnavailable 0, maxSurge 1).
+  - ✅ defined PDB strategy for stateful data services (`postgres` and `redis`: minAvailable 1 in prod-like).
+  - next: extend availability profiles for environment-specific maintenance windows (e.g., staging vs prod).
 - Rollout safety:
   - add progressive delivery policy for API (canary/blue-green or staged rollout by environment).

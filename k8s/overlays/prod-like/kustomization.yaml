@@ -4,6 +4,8 @@ kind: Kustomization
 resources:
   - ../../base
   - policy/api-pdb.yaml
+  - policy/postgres-pdb.yaml
+  - policy/redis-pdb.yaml
 
 patches:
   - path: patches/api-rollout.yaml

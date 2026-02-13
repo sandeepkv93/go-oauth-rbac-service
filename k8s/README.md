@@ -241,3 +241,10 @@ Observability capacity/retention baseline:
   - Mimir: `5Gi`
   - Grafana: `2Gi`
 - Use `task k8s:obs-capacity-check` to validate PVC size floor and restart/backpressure proxy thresholds.
+
+prod-like availability defaults:
+- API runs with `replicas: 2` and rolling strategy `maxUnavailable: 0`, `maxSurge: 1`.
+- PodDisruptionBudgets in prod-like:
+  - API: `minAvailable: 1`
+  - Postgres: `minAvailable: 1`
+  - Redis: `minAvailable: 1`
