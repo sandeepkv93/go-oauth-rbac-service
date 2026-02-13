@@ -1,183 +1,122 @@
-# Kubernetes Deployment (Phase 1 + Phase 2 Local Workflow)
+# Kubernetes Guide
 
-This directory contains the initial Kubernetes baseline for:
-- API (`secure-observable-api`)
-- Postgres
-- Redis
+This directory contains the complete Kubernetes deployment stack for the service, including local Kind workflows, environment overlays, rollout governance, observability, and CI validation gates.
 
-The manifests are organized with Kustomize and target local/dev workflows first.
+## What Is Here
 
-## Prerequisites
+- Base app stack: API, Postgres, Redis, namespace, services, ingress, and core config.
+- Environment overlays: `development`, `prod-like`, `staging`, `production`.
+- Optional observability stack: OTel Collector + Tempo + Loki + Mimir + Grafana.
+- Optional blue/green rollout overlay using Argo Rollouts.
+- Secret bootstrapping and optional external secret store overlays.
+- Local automation scripts + Task aliases.
+- CI validation scripts (manifest schema, OPA policies, rollout gates).
 
-- `kubectl` (with Kustomize support)
-- Kubernetes cluster (local or remote)
-- Docker (if building image locally)
-- Optional: `kind` for local cluster workflows
-- Optional: `sops` + age keys for encrypted secret workflow
-
-## Layout
+## Directory Layout
 
 ```text
 k8s/
-  kind-config.yaml
-  kind-config-simple.yaml
-  base/
-    kustomization.yaml
-    namespace.yaml
+  base/                         # Core manifests (API + Postgres + Redis)
     configmaps/
-    secrets/
     deployments/
     services/
-    persistentvolumes/
     ingress/
+    secrets/
+    persistentvolumes/
   overlays/
-    development/
-    observability-base/
+    development/                # Local dev profile (NodePort API)
+    prod-like/                  # Hardened baseline profile
+    staging/                    # Maintenance-friendly availability profile
+    production/                 # Strict no-downtime API profile
+    observability-base/         # Shared observability components
     observability/
-      dev/
-      ci/
-      prod-like/
-      prod-like-ha/
-  scripts/
-    kind-setup.sh
-    setup-secrets.sh
-    deploy.sh
-    status.sh
-    cleanup.sh
-    health-check.sh
+      dev/                      # dev observability profile
+      ci/                       # low-resource CI profile
+      prod-like/                # persistent + retention tuning
+      prod-like-ha/             # optional HA knobs
+    rollouts/blue-green/        # Argo Rollouts blue/green resources
+    secrets/
+      external-secrets/         # ExternalSecret overlays (dev/staging/prod)
+      stores/                   # ClusterSecretStore variants (AWS/Vault)
+  scripts/                      # Deploy/status/health/rollout/secrets helpers
+  kind-config.yaml              # Kind config for ingress-ready local cluster
+  kind-config-simple.yaml       # Minimal Kind config
+  README.md
 ```
 
-## 1) Create/reset Kind cluster
+## Environment Profiles
 
-```bash
-task k8s:cluster-create
-```
+### App profiles
 
-Reset flow:
+- `base`: minimal deployable app stack.
+- `development`: local-focused profile.
+- `prod-like`: baseline hardening (`replicas: 2`, API PDB `minAvailable: 1`).
+- `staging`: faster rollouts and controlled disruption (`maxUnavailable: 1`).
+- `production`: strict API availability (`replicas: 3`, `maxUnavailable: 0`, API PDB `minAvailable: 2`).
 
-```bash
-task k8s:cluster-reset
-```
+### Observability profiles
 
-The setup script installs ingress-nginx and can optionally install metrics-server:
+- `observability`: default overlay.
+- `observability-dev`: local lightweight behavior.
+- `observability-ci`: constrained resources for CI.
+- `observability-prod-like`: PVC-backed persistence + retention defaults.
+- `observability-prod-like-ha`: optional additional HA scaling knobs.
 
-```bash
-INSTALL_METRICS_SERVER=true task k8s:cluster-create
-```
+## Prerequisites
 
-## 2) Build API image
+- `kubectl` (with kustomize support)
+- `docker`
+- `kind` (for local cluster flows)
+- `task`
+- `go` (for tooling like `loadgen` in runtime checks)
+- Optional: `sops` for encrypted secret workflows
 
-For local clusters (for example Kind), build the app image first:
+## Quick Start (Local Kind)
 
-```bash
-docker build -t secure-observable-api:dev .
-```
-
-Or use automation:
-
-```bash
-task k8s:image-build-load-kind
-```
-
-## 3) Create app secret from template
-
-A template is provided at:
-
-`k8s/base/secrets/app-secrets.env.template`
-
-Create a local copy and set strong values:
+1. Create secrets file:
 
 ```bash
 cp k8s/base/secrets/app-secrets.env.template .secrets.k8s.app.env
 ```
 
-Create/replace Kubernetes secret:
+2. Bring up local stack:
 
 ```bash
-kubectl -n secure-observable create secret generic app-secrets \
-  --from-env-file=.secrets.k8s.app.env \
-  --dry-run=client -o yaml | kubectl apply -f -
+task k8s:setup-full
 ```
 
-Task wrapper:
+3. Verify health:
 
 ```bash
-task k8s:secrets-generate
-task k8s:secrets-apply
+task k8s:health-check
 ```
 
-External Secrets optional overlays (environment-scoped remote keys):
+4. Inspect status:
 
 ```bash
-task k8s:validate-external-secrets
-task k8s:apply-external-secrets-dev
-# or
-task k8s:apply-external-secrets-staging
-# or
-task k8s:apply-external-secrets-prod
+task k8s:status
 ```
 
-ClusterSecretStore overlays (pick exactly one auth mode per cluster):
+5. Cleanup:
 
 ```bash
-task k8s:validate-secret-stores
-task k8s:validate-rollout-overlay
-task k8s:validate-rollout-precheck-script
-task k8s:validate-rollout-runtime-script
-task k8s:validate-availability-profiles
-task k8s:validate-obs-alert-script
-# AWS (recommended identity mode)
-task k8s:apply-secret-store-aws-irsa
-# AWS fallback (static credentials secret)
-task k8s:apply-secret-store-aws-static
-# Vault (recommended Kubernetes auth mode)
-task k8s:apply-secret-store-vault-kubernetes
-# Vault fallback (token secret)
-task k8s:apply-secret-store-vault-token
+task k8s:cleanup
+task k8s:cluster-delete
 ```
 
-Encrypted secret path (recommended):
+## Deploy Commands
 
-```bash
-export SOPS_AGE_RECIPIENTS='age1yourrecipientpublickey'
-task k8s:secrets-encrypt
-```
-
-When `k8s/secrets/app-secrets.enc.env` exists, `task k8s:secrets-apply`
-decrypts and applies that secret instead of plaintext env file.
-
-## 4) Apply manifests
-
-```bash
-kubectl apply -k k8s/base
-kubectl -n secure-observable rollout status statefulset/postgres
-kubectl -n secure-observable rollout status statefulset/redis
-kubectl -n secure-observable rollout status deployment/secure-observable-api
-```
-
-Task wrappers:
+### App deploys
 
 ```bash
 task k8s:deploy-base
-task k8s:rollout
-```
-
-Development overlay deploy (NodePort API service):
-
-```bash
 task k8s:deploy-dev
-```
-
-Production-like app overlay deploy (replicas, rollout strategy, and API PDB):
-
-```bash
 task k8s:deploy-prod-like
 task k8s:deploy-staging
 task k8s:deploy-production
-task k8s:deploy-rollout-bluegreen
 ```
 
-Observability overlay deploy:
+### Observability deploys
 
 ```bash
 task k8s:deploy-observability
@@ -185,105 +124,140 @@ task k8s:deploy-observability-dev
 task k8s:deploy-observability-ci
 task k8s:deploy-observability-prod-like
 task k8s:deploy-observability-prod-like-ha
+```
+
+## Rollout (Blue/Green)
+
+Overlay: `k8s/overlays/rollouts/blue-green`
+
+```bash
+task k8s:deploy-rollout-bluegreen
+task k8s:rollout-status
+task k8s:rollout-precheck
+task k8s:rollout-promote
+task k8s:rollout-abort
+```
+
+Production rollout controls:
+
+```bash
+task k8s:rollout-precheck-production
+task k8s:rollout-promote-production ALLOW_PROD_ROLLOUTS=true
+task k8s:rollout-abort-production ALLOW_PROD_ROLLOUTS=true
+```
+
+Notes:
+
+- Promotion runs SLO-linked prechecks by default.
+- Break-glass bypass exists: `SKIP_PROMOTION_GATES=true`.
+- Governance details: `docs/k8s-rollout-governance.md`.
+
+## Secrets
+
+### Local env-file secret path
+
+```bash
+task k8s:secrets-generate
+task k8s:secrets-apply
+```
+
+### Optional encrypted secret path
+
+```bash
+task k8s:secrets-encrypt
+```
+
+### Optional external secrets/store overlays
+
+```bash
+task k8s:validate-external-secrets
+task k8s:validate-secret-stores
+
+task k8s:apply-external-secrets-dev
+task k8s:apply-external-secrets-staging
+task k8s:apply-external-secrets-prod
+
+task k8s:apply-secret-store-aws-irsa
+task k8s:apply-secret-store-aws-static
+task k8s:apply-secret-store-vault-kubernetes
+task k8s:apply-secret-store-vault-token
+```
+
+## Validation and Policy Gates
+
+### Core CI-aligned checks
+
+```bash
+task k8s:validate-manifests
+task k8s:policy-check
+task k8s:validate-availability-profiles
+task k8s:validate-rollout-overlay
+task k8s:validate-rollout-precheck-script
+task k8s:validate-rollout-runtime-script
+task k8s:validate-obs-alert-script
+```
+
+### Observability/SLO helper checks
+
+```bash
 task k8s:obs-status
 task k8s:obs-capacity-check
 task k8s:obs-alert-check
-task k8s:port-forward-grafana
 ```
 
-Observability profile notes:
-- `observability` (default) and `observability-dev`: single-replica local profile.
-- `observability-ci`: reduced resources for CI-like environments.
-- `observability-prod-like`: PVC-backed storage + retention/resource tuning.
-- `observability-prod-like-ha`: optional HA knobs for stateless components.
+## Runtime Kind Rollout Check (CI)
 
-Telemetry correlation validation:
+Workflow: `.github/workflows/k8s-kind-smoke.yml`
 
-```bash
-kubectl -n secure-observable port-forward svc/secure-observable-api 8080:8080
-kubectl -n secure-observable port-forward svc/grafana 3000:3000
-go run ./cmd/obscheck run --ci --grafana-url http://localhost:3000 --base-url http://localhost:8080
-```
+Runtime stage executes:
 
-## 5) Verify health
+- Kind cluster bring-up
+- Argo Rollouts plugin + controller setup
+- Observability CI overlay deploy
+- Blue/green rollout deploy
+- Traffic generation (`loadgen`)
+- Rollout precheck execution
+- Evidence artifact upload (`k8s-rollout-evidence`)
 
-```bash
-kubectl -n secure-observable port-forward svc/secure-observable-api 8080:8080
-curl -sSf http://localhost:8080/health/live
-curl -sSf http://localhost:8080/health/ready
-```
+Evidence artifact typically contains:
 
-Task wrapper:
+- `rollout-precheck.txt`
+- `loadgen.txt`
+- `rollout.yaml`
+- `pods.txt`, `services.txt`, `events.txt`
+- Prometheus query snapshots (5xx ratio, redis error/saturation)
 
-```bash
-task k8s:health-check
-```
+## Troubleshooting
 
-## 6) Common operations
+- Cluster resources:
 
 ```bash
 task k8s:status
-task k8s:logs-api
-task k8s:port-forward-api
-task k8s:cleanup
-task k8s:cluster-delete
+task k8s:obs-status
 ```
 
-## Notes
-
-- `AUTH_GOOGLE_ENABLED` is disabled in this Phase 1 baseline.
-- OPA workload policy currently has zero scoped exemptions (all managed workloads satisfy baseline controls).
-- CI manifest schema validation runs in strict mode (no `-ignore-missing-schemas`).
-- Observability components are optional overlays and not part of default `k8s:setup-full`.
-- Ingress is enabled in base (`secure-observable.local`, `ingressClassName: nginx`).
-- One-command local setup is available:
+- API logs:
 
 ```bash
-task k8s:setup-full
+task k8s:logs-api
 ```
 
-Observability capacity/retention baseline:
-- `observability-prod-like` sets retention defaults to 7 days for Tempo/Loki/Mimir.
-- PVC minimum requested storage thresholds:
-  - Tempo: `2Gi`
-  - Loki: `4Gi`
-  - Mimir: `5Gi`
-  - Grafana: `2Gi`
-- Use `task k8s:obs-capacity-check` to validate PVC size floor and restart/backpressure proxy thresholds.
+- Port-forward API/Grafana:
 
-prod-like availability defaults:
-- API runs with `replicas: 2` and rolling strategy `maxUnavailable: 0`, `maxSurge: 1`.
-- PodDisruptionBudgets in prod-like:
-  - API: `minAvailable: 1`
-  - Postgres: `minAvailable: 1`
-  - Redis: `minAvailable: 1`
+```bash
+task k8s:port-forward-api
+task k8s:port-forward-grafana
+```
 
-staged rollout strategy:
-- `staging` overlay: API `replicas: 2`, `minReadySeconds: 10`, `progressDeadlineSeconds: 420`, `maxUnavailable: 1`, `maxSurge: 1` for maintenance-friendly velocity.
-- `production` overlay: API `replicas: 3`, `minReadySeconds: 30`, `progressDeadlineSeconds: 900`, `maxUnavailable: 0`, `maxSurge: 1` for no-downtime rollout posture.
+- Rollout/controller checks:
 
-environment-specific disruption policy:
-- `staging` overlay sets PDB `maxUnavailable: 1` for API, Postgres, and Redis to permit controlled maintenance disruption.
-- `production` overlay sets API PDB `minAvailable: 2` and keeps Postgres/Redis PDB `minAvailable: 1`.
-- CI enforces these profiles with `task k8s:validate-availability-profiles`.
+```bash
+bash k8s/scripts/check-rollouts-controller.sh
+task k8s:rollout-status
+```
 
+## Source of Truth
 
-optional Argo Rollouts blue/green:
-- overlay: `k8s/overlays/rollouts/blue-green`
-- deploy: `task k8s:deploy-rollout-bluegreen`
-- inspect/precheck/promote/abort: `task k8s:rollout-status`, `task k8s:rollout-precheck`, `task k8s:rollout-promote`, `task k8s:rollout-abort`
-- production precheck: `task k8s:rollout-precheck-production`
-- requires Argo Rollouts controller + kubectl plugin.
-- default promotion runs SLO-linked prechecks; break-glass override is `SKIP_PROMOTION_GATES=true`.
-- `k8s-kind-smoke` now executes runtime rollout precheck with generated traffic and uploads SLO evidence artifacts.
-
-staging-first governance policy for blue/green:
-- default rollout operations (`task k8s:rollout-promote`, `task k8s:rollout-abort`) are treated as staging actions.
-- production rollout actions require explicit approval flag:
-  - `task k8s:rollout-promote-production ALLOW_PROD_ROLLOUTS=true`
-  - `task k8s:rollout-abort-production ALLOW_PROD_ROLLOUTS=true`
-- use `task k8s:validate-rollout-overlay` to enforce rollout manifest policy in CI/local.
-
-
-rollout governance runbook:
-- `docs/k8s-rollout-governance.md`
+- Task entrypoints: `taskfiles/k8s.yaml`
+- Operational rollout policy: `docs/k8s-rollout-governance.md`
+- CI gates: `.github/workflows/ci.yml`, `.github/workflows/k8s-kind-smoke.yml`
