@@ -41,7 +41,7 @@
       },
       "targets": [
         {
-          "expr": "sum(http_server_active_requests{job=\"secure-observable-go-backend-starter-kit\"})",
+          "expr": "sum(http_server_active_requests{job=\"secure-observable-go-backend-starter-kit\"}) or vector(0)",
           "refId": "A"
         }
       ],
@@ -156,17 +156,17 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"secure-observable-go-backend-starter-kit\",http_response_status_code=~\"2..\"}[5m]))",
+          "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"secure-observable-go-backend-starter-kit\",http_response_status_code=~\"2..\"}[5m])) or vector(0)",
           "legendFormat": "2xx",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"secure-observable-go-backend-starter-kit\",http_response_status_code=~\"4..\"}[5m]))",
+          "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"secure-observable-go-backend-starter-kit\",http_response_status_code=~\"4..\"}[5m])) or vector(0)",
           "legendFormat": "4xx",
           "refId": "B"
         },
         {
-          "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"secure-observable-go-backend-starter-kit\",http_response_status_code=~\"5..\"}[5m]))",
+          "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"secure-observable-go-backend-starter-kit\",http_response_status_code=~\"5..\"}[5m])) or vector(0)",
           "legendFormat": "5xx",
           "refId": "C"
         }
@@ -302,7 +302,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(auth_refresh_attempts_total{job=\"secure-observable-go-backend-starter-kit\"}[5m])) by (status)",
+          "expr": "sum(rate(auth_refresh_attempts_total{job=\"secure-observable-go-backend-starter-kit\"}[5m])) by (status) or vector(0)",
           "legendFormat": "{{status}}",
           "refId": "A"
         }
@@ -370,7 +370,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(repository_operations_total{job=\"secure-observable-go-backend-starter-kit\",outcome=\"error\"}[5m])) by (repo)",
+          "expr": "sum(rate(repository_operations_total{job=\"secure-observable-go-backend-starter-kit\",outcome=\"error\"}[5m])) by (repo) or vector(0)",
           "legendFormat": "{{repo}}",
           "refId": "A"
         }
@@ -404,7 +404,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(health_check_results_total{job=\"secure-observable-go-backend-starter-kit\",outcome=\"unhealthy\"}[5m])) by (check)",
+          "expr": "sum(rate(health_check_results_total{job=\"secure-observable-go-backend-starter-kit\",outcome=\"unhealthy\"}[5m])) by (check) or vector(0)",
           "legendFormat": "{{check}}",
           "refId": "A"
         }
@@ -474,7 +474,7 @@
       },
       "targets": [
         {
-          "expr": "redis_command_error_rate_ratio{job=\"secure-observable-go-backend-starter-kit\"}",
+          "expr": "redis_command_error_rate_ratio{job=\"secure-observable-go-backend-starter-kit\"} or vector(0)",
           "legendFormat": "error_rate",
           "refId": "A"
         }
@@ -510,7 +510,7 @@
       },
       "targets": [
         {
-          "expr": "redis_pool_saturation_ratio{job=\"secure-observable-go-backend-starter-kit\"}",
+          "expr": "redis_pool_saturation_ratio{job=\"secure-observable-go-backend-starter-kit\"} or vector(0)",
           "legendFormat": "pool_saturation",
           "refId": "A"
         }
@@ -586,7 +586,7 @@
       },
       "targets": [
         {
-          "expr": "redis_keyspace_hit_ratio_ratio{job=\"secure-observable-go-backend-starter-kit\"}",
+          "expr": "redis_keyspace_hit_ratio_ratio{job=\"secure-observable-go-backend-starter-kit\"} or vector(0)",
           "legendFormat": "hit_ratio",
           "refId": "A"
         }

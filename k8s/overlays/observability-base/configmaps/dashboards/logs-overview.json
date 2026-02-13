@@ -71,7 +71,7 @@
       },
       "targets": [
         {
-          "expr": "sum(count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | level=\"error\" [1h]))",
+          "expr": "(sum(count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | level=\"error\" [1h])) or vector(0))",
           "queryType": "range",
           "refId": "A"
         }
@@ -112,12 +112,12 @@
       },
       "targets": [
         {
-          "expr": "sum(count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | level=\"warn\" [1h]))",
+          "expr": "sum(count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | level=\"debug\" [1h]))",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Warning Count (1h)",
+      "title": "Debug Log Count (1h)",
       "type": "stat"
     },
     {
@@ -153,12 +153,12 @@
       },
       "targets": [
         {
-          "expr": "sum(count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | message=\"http.request\" [1h]))",
+          "expr": "sum(count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | path!=\"\" [1h]))",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "HTTP Requests (1h)",
+      "title": "Path-Tagged Logs (1h)",
       "type": "stat"
     },
     {
@@ -194,12 +194,12 @@
       },
       "targets": [
         {
-          "expr": "count(sum by (trace_id) (count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | trace_id!=\"\" [1h])))",
+          "expr": "sum(count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | path!=\"\" [1h]))",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Unique Trace IDs (1h)",
+      "title": "Path-Tagged Logs Volume (1h)",
       "type": "stat"
     },
     {
@@ -228,13 +228,13 @@
       },
       "targets": [
         {
-          "expr": "sum(count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | level=\"error\" [5m]))",
+          "expr": "(sum(count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | level=\"error\" [5m])) or vector(0))",
           "legendFormat": "error",
           "queryType": "range",
           "refId": "A"
         },
         {
-          "expr": "sum(count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | level=\"warn\" [5m]))",
+          "expr": "sum(count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | level=\"debug\" [5m]))",
           "legendFormat": "warn",
           "queryType": "range",
           "refId": "B"
@@ -293,7 +293,7 @@
           "refId": "B"
         },
         {
-          "expr": "sum(count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | status >= 500 and status < 600 [5m]))",
+          "expr": "(sum(count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | status >= 500 and status < 600 [5m])) or vector(0))",
           "legendFormat": "5xx",
           "queryType": "range",
           "refId": "C"
@@ -325,11 +325,11 @@
       },
       "targets": [
         {
-          "expr": "{service_name=\"secure-observable-go-backend-starter-kit\"} | json | level=\"warn\"",
+          "expr": "{service_name=\"secure-observable-go-backend-starter-kit\"} | json | level=\"debug\"",
           "refId": "A"
         }
       ],
-      "title": "Warning Logs",
+      "title": "Debug Logs",
       "type": "logs"
     },
     {
@@ -355,11 +355,11 @@
       },
       "targets": [
         {
-          "expr": "{service_name=\"secure-observable-go-backend-starter-kit\"} | json | message=\"http.request\"",
+          "expr": "{service_name=\"secure-observable-go-backend-starter-kit\"} | json | path!=\"\"",
           "refId": "A"
         }
       ],
-      "title": "HTTP Request Logs",
+      "title": "Path-Tagged Logs",
       "type": "logs"
     },
     {
@@ -388,7 +388,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (level) (count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | level=~\"error|warn\" [5m]))",
+          "expr": "sum by (level) (count_over_time({service_name=\"secure-observable-go-backend-starter-kit\"} | json | level=~\"error|warn|debug\" [5m]))",
           "legendFormat": "{{level}}",
           "queryType": "range",
           "refId": "A"
