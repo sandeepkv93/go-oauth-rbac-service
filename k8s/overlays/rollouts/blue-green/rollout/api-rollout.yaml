@@ -2,6 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
   name: secure-observable-api
+  namespace: secure-observable
   labels:
     app.kubernetes.io/name: secure-observable-api
     app.kubernetes.io/component: api
